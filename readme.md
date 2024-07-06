@@ -3,6 +3,8 @@
 My reference paper I think:
 > https://github.com/ruidan/Unsupervised-Aspect-Extraction/blob/master/code/train.py
 
+Another one could be:
+> https://www.researchgate.net/publication/220816965_An_Unsupervised_Aspect-Sentiment_Model_for_Online_Reviews
 
 ## Project (P#) of the Natural Language Processing Course
 For the project I chose to elaborate the proposal number # as I have a personal
