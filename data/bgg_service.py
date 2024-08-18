@@ -1,3 +1,5 @@
+from typing import Final
+
 import requests
 
 import pandas as pd
@@ -21,7 +23,8 @@ from xml.etree.ElementTree import fromstring
         and review on BGG and so I'd be creating a low bias towards those games?
 """
 
-BGG_URL = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
+# To fill Url (Cannot be overwritten)
+BGG_URL: Final[str] = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
 
 
 class BggService:
@@ -29,11 +32,11 @@ class BggService:
     latest_game: Series = None
 
     def __init__(self, endpoint: str, game_list_csv_path: str = "./resources/2024-08-18.csv"):
-        # https://boardgamegeek.com/xmlapi2/thing?id={csv-id}&stats=1&comments=1&page=3
         self.endpoint: str = endpoint
 
-        # Load csv data with Pandas.
+        # Todo: Filter out the games with less than 150 reviews?
         self.games_dataframe = pd.read_csv(game_list_csv_path)
+
         self.current_game_index = 0
         self.current_game_meta_page = 1
 
@@ -49,7 +52,7 @@ class BggService:
 
     def load_more(self):
         """
-        Goes to next page of selected game metadata (Comments, etc)
+        Goes to next page of selected game metadata (comments, etc.)
         """
         if self.latest_game is None:
             raise Exception("No more information for the current game is available")
