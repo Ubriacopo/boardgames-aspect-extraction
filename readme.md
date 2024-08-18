@@ -1,10 +1,25 @@
 > Todo restructure
 
+### References
 My reference paper I think:
 > https://github.com/ruidan/Unsupervised-Aspect-Extraction/blob/master/code/train.py
+>
+> https://aclanthology.org/P17-1036.pdf
 
 Another one could be:
 > https://www.researchgate.net/publication/220816965_An_Unsupervised_Aspect-Sentiment_Model_for_Online_Reviews
+
+
+>https://www.kaggle.com/code/nkitgupta/aspect-based-sentiment-analysis <br>
+> Explains well how to do all. Nice insight on Emojis and Unicode normalization
+
+> https://stats.stackexchange.com/questions/523066/should-stemming-and-lemmatization-both-be-used-together-or-not-what-is-best-pra <br>
+> Background- stemming and lemmatization are both ways to shrink the size of the vocabulary space. By turning "running", "runner" and "runs" all into the stem or lemma "run", you can curb sparsity in your dataset. This is important as overly sparse data can lead to overfit (ie memorizing findings, not learning generalizable patterns.) Stemming is much faster as it's a fairly simple case-based algorithm. Lemmatizing is much more expensive yet doesn't offer an improvement proportionate to the increased computation time.
+In either case, (or with neither method) you still need to vectorize your text inputs in some manner. TF-IDF (term frequency inverse document frequency) is a common means. It essentially says how import is a given word to a given document when contrasted with the frequency of the word occurring across all documents. Ex: If "horrible" is uncommon in a dataset of Yelp reviews but occurs three times in a specific review, then this word is assumed to play a more important role in this review than in others.
+The last development in NLP text-preprocessing is using word vectors (see GloVe, Word2Vec for more info.) These methods map vocabulary to high dimensional space. And when a sequence of words is treated as the aggregation of word vectors, you get an embedding that is sometimes better than TF-IDF representation.
+Short answer- go with stemming when the vocab space is small and the documents are large. Conversely, go with word embeddings when the vocab space is large but the documents are small. However, don't use lemmatization as the increased performance to increased cost ratio is quite low.
+
+
 
 ## Project (P#) of the Natural Language Processing Course
 For the project I chose to elaborate the proposal number # as I have a personal

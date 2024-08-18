@@ -28,3 +28,8 @@ and run it as well to see how bad I am at modelling and how much thought goes to
 Come pensavo. Ma vedi cosa sono window e negative sample <br>
 Per embeddings guarda:
 > https://stackoverflow.com/questions/64145666/fine-tuning-of-bert-word-embeddings
+
+
+## Going further
+ABAE only recognizes Aspects, we have to give a sentiment to each one found in the comments to make
+a final avarage or median on all the comments to classify a boardgame.
