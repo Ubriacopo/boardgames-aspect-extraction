@@ -9,8 +9,6 @@ from xmljson import yahoo
 # To fill Url (Cannot be overwritten) todo: Env variable
 BGG_URL: Final[str] = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
 
-
-# Todo Rename into BggRetrieverService
 class BggRetrieverService:
     """
         Service that loads the reviews from BGG for a given game. (We use BGG-APIv2)

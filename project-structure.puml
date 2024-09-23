@@ -1,0 +1,42 @@
+@startuml
+interface Model {
+    train(): Model
+    predict(): ?
+}
+
+class GameRecord {
+}
+
+class BggRetrieverService {
+    + BggRetrieverService(base_url: str)
+    + load(game_ids: int[]): GameRecord[]
+}
+
+BggRetrieverService ..> GameRecord
+
+class BggCorpusService {
+    - BGG_URL:str [static]
+    - games_dataframe: DataFrame
+
+    + corpus : str[] | DataLoader | CustomDataloader?
+
+    + download_corpus(): void
+    + restore_corpus(): void
+
+}
+
+BggRetrieverService <-- BggCorpusService
+
+class ModelGenerator {
+    - model: Model
+    + ModelGenerator(corpus_service: CorpusService, template_path: str | None)
+    + train_model(): Model
+    + evaluate_model(metrics: fun[]): ?[]
+}
+
+ModelGenerator -> BggCorpusService
+ModelGenerator ..> Model
+
+'https://plantuml.com/class-diagram
+
+@enduml

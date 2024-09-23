@@ -30,6 +30,10 @@ Per embeddings guarda:
 > https://stackoverflow.com/questions/64145666/fine-tuning-of-bert-word-embeddings
 
 
+## Word2vec-like or BERT-like?
+This question requires further research
+
 ## Going further
 ABAE only recognizes Aspects, we have to give a sentiment to each one found in the comments to make
 a final avarage or median on all the comments to classify a boardgame.
+
