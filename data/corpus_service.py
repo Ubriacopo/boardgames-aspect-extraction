@@ -25,7 +25,7 @@ class BggCorpusService:
     # e fare solo poche pagine ciascuno. Poi va salvato perchè grosso
 
     # Might online learning be the best idea and j
-    ## todo su service handle error object: OrderedDict({'error': OrderedDict({'message': 'Rate limit exceeded.'})})
+    ## todo su bgg_service handle error object: OrderedDict({'error': OrderedDict({'message': 'Rate limit exceeded.'})})
     def generate_corpus(self) -> list[str]:
 
         corpus: list[str] = []

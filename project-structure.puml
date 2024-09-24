@@ -25,7 +25,14 @@ class BggCorpusService {
 
 }
 
+class Dataloader {
+}
+
+BggDataset -|> Dataset
+BggDataset --> BggCorpusService
+
 BggRetrieverService <-- BggCorpusService
+
 
 class ModelGenerator {
     - model: Model

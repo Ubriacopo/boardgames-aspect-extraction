@@ -1,0 +1,2 @@
+- Prendo solo commenti da giochi che ne hanno un quantitativo minimo?
+- Fare cosa di preprocessing per togliere commenti inutili
