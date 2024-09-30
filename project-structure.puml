@@ -41,8 +41,24 @@ class ModelGenerator {
     + evaluate_model(metrics: fun[]): ?[]
 }
 
+
 ModelGenerator -> BggCorpusService
 ModelGenerator ..> Model
+
+interface EmbeddingModel {
+}
+
+EmbeddingModel -|> Model
+
+class CustomEmbeddingModel {
+}
+
+CustomEmbeddingModel -|> EmbeddingModel
+
+class BertEmbeddingModel {
+}
+
+BertEmbeddingModel -|> EmbeddingModel
 
 'https://plantuml.com/class-diagram
 
