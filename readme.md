@@ -177,3 +177,7 @@ print(" ".join([terms[i] for i in topic.argsort()[-10:]]))
         Adjustments: If needed, refine the preprocessing steps, choose different parameters, or try alternative algorithms for better results.
 
 By following these steps, you can perform unsupervised aspect extraction to identify the desired aspects in your text corpus.
+
+
+## Project Setup and Instllation
+> python -m spacy download en_core_web_trf
