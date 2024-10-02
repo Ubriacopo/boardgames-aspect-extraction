@@ -3,7 +3,7 @@ from pathlib import Path
 
 import gensim.models
 import keras
-
+import pandas as pd
 
 # We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
 # representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
@@ -77,4 +77,6 @@ class WordEmbedding(Embedding):
         # Remove stopwords. todo: service for this.
         # https://stackoverflow.com/questions/3182268/nltk-and-language-detection To detect if not English
         # https://pypi.org/project/langdetect/ could also be a valid alternative
+
+        pd.read_csv(corpus_file)["comments"]
         pass

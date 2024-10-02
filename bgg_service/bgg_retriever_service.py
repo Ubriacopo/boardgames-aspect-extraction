@@ -17,12 +17,17 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 @dataclass
 class GameCommentsRecord:
+
     game_id: int  # Reference to the game this comments belongs to
     comments: list[str]  # The extracted comments of the game
 
 
 class BggRetrieverService:
     def __init__(self, base_url: str):
+        """
+
+        @param base_url:
+        """
         self.base_url = base_url
 
     @staticmethod

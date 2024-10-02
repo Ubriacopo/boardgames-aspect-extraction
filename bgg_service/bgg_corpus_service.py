@@ -10,13 +10,19 @@ from bgg_service.bgg_retriever_service import BggRetrieverService
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
-
+# todo change name? to download service o altro
 class BggCorpusService:
     BGG_URL: Final[str] = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
 
     def __init__(self, retriever_service: BggRetrieverService,
                  game_list_csv_path: str = "../../resources/2024-08-18.csv",
                  download_file_path: str = "./../../data/corpus.csv"):
+        """
+
+        @param retriever_service:
+        @param game_list_csv_path:
+        @param download_file_path:
+        """
         self.retriever_service = retriever_service
         self.game_list_csv_path = game_list_csv_path
         self.games_dataframe: DataFrame = pd.read_csv(game_list_csv_path)
