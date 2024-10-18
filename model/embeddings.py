@@ -1,9 +1,17 @@
+# TODO Change env
+import os
+
+import spacy
+
+os.environ["KERAS_BACKEND"] = "torch"
+
 from abc import ABC
 from pathlib import Path
 
 import gensim.models
 import keras
 import pandas as pd
+
 
 # We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
 # representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
@@ -21,7 +29,7 @@ class Embedding(ABC):
     def load_model(self, override: bool = False):
         pass
 
-    def load_corpus(self, corpus_file: str) -> list:
+    def load_corpus(self, corpus_file: str, nlp) -> list:
         pass
 
 
@@ -29,6 +37,7 @@ class MyWord2Vec(keras.Model):
     """
     A simple implementation to better explore how Word2Vec models are built.
     """
+
     def __init__(self, vocab_size: int, embedding_size: int, target_file: str):
         super(MyWord2Vec, self).__init__()  # <-Extends model class
         self.target_embedding = keras.layers.Embedding(vocab_size, embedding_size, name='w2v_embedding')
@@ -44,7 +53,7 @@ class MyWord2Vec(keras.Model):
 
         return keras.layers.Flatten()(dots)
 
-
+# todo restructure
 # https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
 class WordEmbedding(Embedding):
     model: gensim.models.Word2Vec  # Currently loaded model
@@ -62,21 +71,32 @@ class WordEmbedding(Embedding):
         )
 
     def load_model(self, override: bool = False):
+        # https://www.kaggle.com/code/pierremegret/gensim-word2vec-tutorial
+        nlp = spacy.blank("en") # To avoid any kind of overhead. We are not basically splitting
+        # as the text was already pre-processed.
+
         # Load the already created model if we don't want to override it
         if not override and Path(self.target_file).exists():
             self.model = gensim.models.Word2Vec.load(Path(self.target_file))
 
+        # All that is required is that the input yields one sentence (list of utf8 words) after another
         # https://radimrehurek.com/gensim/auto_examples/tutorials/run_word2vec.html
         self.model = gensim.models.Word2Vec(
-            sentences=self.load_corpus(self.corpus_file), vector_size=self.embedding_size, min_count=20, workers=8
+            sentences=self.load_corpus(self.corpus_file, nlp), vector_size=self.embedding_size, min_count=20, workers=8
         )
 
         self.model.save(self.target_file)
 
-    def load_corpus(self, corpus_file: str) -> list:
-        # Remove stopwords. todo: service for this.
-        # https://stackoverflow.com/questions/3182268/nltk-and-language-detection To detect if not English
-        # https://pypi.org/project/langdetect/ could also be a valid alternative
+    @staticmethod
+    def __try_tokenization(text: str, nlp):
+        try:
+            return nlp(text)
+        except:
+            print(f"{text} is not convertable")
+            return None
 
-        pd.read_csv(corpus_file)["comments"]
-        pass
+    def load_corpus(self, corpus_file: str, nlp) -> list:
+        # Ho ancora stringhe vuote da rimuovere
+        # todo: Ok ma lento. Attento alla punctuation che non mi serve. (overhead inutile)
+        lines = pd.read_csv(corpus_file)["comments"].swifter.apply(lambda x: nlp(x))
+        return [[tokenized.text for tokenized in line] for line in lines]

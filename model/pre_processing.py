@@ -14,6 +14,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H
 
 class PreProcessingService:
     stop_words = stop_words.STOP_WORDS
+    punctuation = stop_words.PUNCTUATION
 
     def __init__(self, extensive_logging: bool = False):
         self.nlp = spacy.load("en_core_web_sm")
@@ -40,7 +41,8 @@ class PreProcessingService:
 
         text_tokens = self.nlp(entry.lower())
         # self.extensive_logging and logging.info(f"We split the text in the lemmas: {text_tokens}")
-        return [token.lemma_ for token in text_tokens if str(token) not in self.stop_words]
+        return [token.lemma_ for token in text_tokens
+                if not token.is_punct and not token.is_currency and str(token) not in self.stop_words]
 
     def pre_process(self, entry: str) -> str | None:
         try:

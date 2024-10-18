@@ -8,4 +8,9 @@
     - Testi rotti
 - Fare cosa di preprocessing per togliere commenti inutili
 
+- Rifare pre-processing dei testi. Metto anche riga commento numeor per riferimento?
+- Rimuovere punteggiatura da pre-processing
+- Scrivere Modello
+- Dictionary only on training set and not all dataset
+
 https://github.com/ruidan/Unsupervised-Aspect-Extraction/tree/master
