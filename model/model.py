@@ -1,4 +1,5 @@
 from abc import abstractmethod
+import layer
 
 import keras
 
@@ -26,9 +27,10 @@ class CustomEmbeddingsModelGenerator(ModelGenerator):
 
 
 class ABAEModelGenerator(ModelGenerator):
-    def __init__(self, input_shape: tuple, vocabulary: list):
+    def __init__(self, input_shape: tuple, vocabulary: list, aspect_size: int):
         super(ABAEModelGenerator, self).__init__(input_shape=input_shape)
         self.vocabulary = vocabulary
+        self.aspect_size = aspect_size
 
     # todo make. Or pass an embedding model generator
     def make_embedding_layer(self) -> keras.layers.Embedding:
@@ -40,15 +42,19 @@ class ABAEModelGenerator(ModelGenerator):
         embedding_layer = self.make_embedding_layer()
 
         input_layer = keras.layers.Input(shape=self.input_shape, name='input')
-
         embeddings = embedding_layer(input_layer)
-        avg = keras.layers.Average()(list(embeddings))
-
+        avg = layer.MaskedAverage()(embeddings)
         attention_weights = keras.layers.Attention()([embeddings, avg])
-        # todo contiunua
-
+        # todo contiunua con weighted sum
 
         # Negative representation for negative feedback
         negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input')
         negative_embeddings = embedding_layer(negative_input_layer)
-        avg_neg = keras.layers.Average()(list(negative_embeddings))
+        avg_neg = layer.MaskedAverage()(list(negative_embeddings))
+
+        # Sentence reconstruction
+        dense_layer = keras.layers.Dense(units=self.aspect_size, activation='softmax')
+        # weighted aspect emb
+
+
+        return [input_layer, negative_input_layer], out

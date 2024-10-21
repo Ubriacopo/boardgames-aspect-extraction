@@ -13,7 +13,7 @@ class MaskedAverage(keras.layers.Layer):
     def call(self, input_data, mask=None):
         if mask is None:
             # We sum along the first axis as in our context we have rows of embeddings (words)
-            return keras.ops.sum(input_data, axis=-2) / input_data.shape[0]
+            return keras.ops.sum(input_data, axis=-2) / input_data.shape[1] # todo what axis?
 
         mask = keras.ops.cast(mask, keras.backend.floatx())
         mask = keras.ops.expand_dims(mask, axis=-1)
