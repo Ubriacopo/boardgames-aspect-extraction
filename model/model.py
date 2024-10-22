@@ -27,25 +27,31 @@ class CustomEmbeddingsModelGenerator(ModelGenerator):
 
 
 class ABAEModelGenerator(ModelGenerator):
-    def __init__(self, input_shape: tuple, vocabulary: list, aspect_size: int):
+    def __init__(self, input_shape: tuple, vocabulary: list, embedding_size: int, aspect_size: int):
         super(ABAEModelGenerator, self).__init__(input_shape=input_shape)
         self.vocabulary = vocabulary
-        self.aspect_size = aspect_size
 
-    # todo make. Or pass an embedding model generator
-    def make_embedding_layer(self) -> keras.layers.Embedding:
-        pass
+        self.aspect_size = aspect_size
+        self.embedding_size = embedding_size
 
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         vocabulary_size = len(self.vocabulary)
-        # mask_zero=True
-        embedding_layer = self.make_embedding_layer()
 
         input_layer = keras.layers.Input(shape=self.input_shape, name='input')
+        # todo -------------------------
+        embedding_layer = keras.layers.Embedding(vocabulary_size, self.embedding_size, mask_zero=True, name='embedding')
+        # todo load parameters of embedding model
+        # todo -------------------------
+
+
+
         embeddings = embedding_layer(input_layer)
         avg = layer.MaskedAverage()(embeddings)
-        attention_weights = keras.layers.Attention()([embeddings, avg])
-        # todo contiunua con weighted sum
+
+        # todo: On code of paper it was inverse Attention call but impl was custom.
+        #       Check that they behave the same
+        attention_weights = keras.layers.Attention()([avg, embeddings])
+        weighted_positive = layer.WeightedSumLayer()(embeddings, attention_weights)
 
         # Negative representation for negative feedback
         negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input')
@@ -54,7 +60,8 @@ class ABAEModelGenerator(ModelGenerator):
 
         # Sentence reconstruction
         dense_layer = keras.layers.Dense(units=self.aspect_size, activation='softmax')
-        # weighted aspect emb
-
-
-        return [input_layer, negative_input_layer], out
+        # todo finish (load parameters for embedding model.
+        aspect_embeddings = keras.layers.Embedding(input_dim=self.aspect_size, output_dim=self.embedding_size,
+                                                   embeddings_regularizer=None)(dense_layer)
+        output = layer.MaxMargin()([weighted_positive, avg_neg, aspect_embeddings])
+        return [input_layer, negative_input_layer], output
