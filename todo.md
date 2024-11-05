@@ -1,17 +1,11 @@
 ## IMPROTANTE
 
-- Alla generazione del dataset ho sbagliato qualcosa. Parole che appaiono in generale una volta
-  sola devono essere rimossi dal corpus (in particolare link e altre parole inutili) min in 5 docs
-
-> If your model relies heavily on word co-occurrence and contextual embeddings (as in many transformer models), it’s
-> generally better to keep these rare words in the vocabulary.
-However, if memory efficiency is a critical issue or if the rare words significantly inflate the vocabulary, you might
-consider selectively removing them based on criteria such as document frequency.
-
 - Remove links and numbers?
 - Remvoe dates
 - Remove emojis like
-  - b]complexity:[/b simple):star::star::star::star::nostar complex b]
+    - b]complexity:[/b simple):star::star::star::star::nostar complex b]
+- json readable config  (guarda progetto al lavoroe copia)
+
 ## PENDING
 
 - Usare le issue (Sarebbe comdoo)
