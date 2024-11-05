@@ -43,8 +43,6 @@ class ABAEModelGenerator(ModelGenerator):
         # todo load parameters of embedding model
         # todo -------------------------
 
-
-
         embeddings = embedding_layer(input_layer)
         avg = layer.MaskedAverage()(embeddings)
 
@@ -61,7 +59,8 @@ class ABAEModelGenerator(ModelGenerator):
         # Sentence reconstruction
         dense_layer = keras.layers.Dense(units=self.aspect_size, activation='softmax')
         # todo finish (load parameters for embedding model.
-        aspect_embeddings = keras.layers.Embedding(input_dim=self.aspect_size, output_dim=self.embedding_size,
-                                                   embeddings_regularizer=None)(dense_layer)
+        aspect_embeddings = keras.layers.Embedding(
+            input_dim=self.aspect_size, output_dim=self.embedding_size, embeddings_regularizer=None
+        )(dense_layer)
         output = layer.MaxMargin()([weighted_positive, avg_neg, aspect_embeddings])
         return [input_layer, negative_input_layer], output

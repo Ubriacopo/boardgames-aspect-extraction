@@ -12,6 +12,7 @@ from spacy.lang.en import stop_words
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 
+# todo refactor con clean
 class PreProcessingService:
     stop_words = stop_words.STOP_WORDS
     punctuation = stop_words.PUNCTUATION
@@ -59,7 +60,7 @@ class PreProcessingService:
 
 
 def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",
-                       target_file_path: str = "./data/corpus.preprocessed.csv", overwrite: bool = False):
+                       target_file_path: str = "./data/corpus.preprocessed.og.csv", overwrite: bool = False):
     """
 
     @param resource_file_path:
@@ -81,4 +82,4 @@ def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",
 
     save_frame["comments"] = reference_dataframe["comments"].swifter.apply(ps.pre_process)
     save_frame = save_frame.dropna()
-    save_frame.to_csv(target_file_path, mode="w", header=True, index=False)
+    save_frame.to_csv(target_file_path, mode="w", header=False, index=False)

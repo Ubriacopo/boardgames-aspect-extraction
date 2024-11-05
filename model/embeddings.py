@@ -1,12 +1,7 @@
-# TODO Change env
-import os
-
-import spacy
-
-os.environ["KERAS_BACKEND"] = "torch"
-
 from abc import ABC
 from pathlib import Path
+import spacy
+import swifter
 
 import gensim.models
 import keras
@@ -53,6 +48,7 @@ class MyWord2Vec(keras.Model):
 
         return keras.layers.Flatten()(dots)
 
+
 # todo restructure
 # https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
 class WordEmbedding(Embedding):
@@ -72,7 +68,7 @@ class WordEmbedding(Embedding):
 
     def load_model(self, override: bool = False):
         # https://www.kaggle.com/code/pierremegret/gensim-word2vec-tutorial
-        nlp = spacy.blank("en") # To avoid any kind of overhead. We are not basically splitting
+        nlp = spacy.blank("en")  # To avoid any kind of overhead. We are not basically splitting
         # as the text was already pre-processed.
 
         # Load the already created model if we don't want to override it
@@ -98,5 +94,5 @@ class WordEmbedding(Embedding):
     def load_corpus(self, corpus_file: str, nlp) -> list:
         # Ho ancora stringhe vuote da rimuovere
         # todo: Ok ma lento. Attento alla punctuation che non mi serve. (overhead inutile)
-        lines = pd.read_csv(corpus_file)["comments"].swifter.apply(lambda x: nlp(x))
+        lines = pd.read_csv(corpus_file, names=["comments"])["comments"].swifter.apply(lambda x: nlp(x))
         return [[tokenized.text for tokenized in line] for line in lines]

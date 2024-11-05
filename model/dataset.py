@@ -49,13 +49,36 @@ class CommentDataset(Dataset):
     def __init__(self, csv_dataset_path: str = ""):
         # Is way faster than having to reload it at each iteration.
         self.dataset = pd.read_csv(csv_dataset_path, names=["comments"]).dropna()
+        self.dataset = self.dataset["comments"].swifter.apply(lambda x: [token.text for token in self.nlp(x)])
+
+        # Generate the vocabulary or load it if it exists
+        if os.path.exists(f"{csv_dataset_path}.vocab"):
+            self.vocab = pd.read_csv(f"{csv_dataset_path}.vocab")
+        else:
+            self.vocab = pd.DataFrame(list(self.__generate_vocabulary().items()), columns=["token", "times"])
+            self.vocab.sort_values(by="times", inplace=True, ascending=False)
+
+            # Index is the important element. Times is just an enrichment but could be dropped as
+            # the info it carries is not really required from now on.
+            self.vocab.to_csv(f"{csv_dataset_path}.vocab", index=True)
+
+            # Should I save already processed dataset?
+
         print(self.dataset.memory_usage(deep=True))
         print(self.dataset.info(memory_usage='deep'))
 
+    def __generate_vocabulary(self) -> dict:
+        # Default two terms. (We do zero masking?)
+        vocabulary = {"<unk>": 0, "<pad>": 1}
+        # todo empty spaces ci sono ancora
+        for entry in self.dataset:
+            for e in entry:  # We factorized the text in order to have arrays of words
+                vocabulary[e] = 1 if e not in vocabulary else vocabulary.get(e) + 1
+        return vocabulary
+
     def __getitem__(self, index):
-        # We skip the header from comments so index + 1
-        # read_line = (pd.read_csv(self.filepath, skiprows=index + 1, nrows=1, names=["comments"]).dropna()).dropna()
-        return [token.text for token in self.nlp(self.dataset.at[index + 1, "comments"])]
+        # todo vedi
+        return [self.vocab[token]["index"] for token in self.dataset.at[index + 1]]
 
     def __len__(self):
         return len(self.dataset)
@@ -63,6 +86,7 @@ class CommentDataset(Dataset):
 
 class VocabularyDataset(Dataset):
     nlp = spacy.blank("en")
+
     # todo end
     def __init__(self, vocabulary, max_sequence_length: int = 256, batch_size: int = 30, csv_dataset_path: str = ""):
         """
