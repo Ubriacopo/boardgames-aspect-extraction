@@ -11,7 +11,6 @@ import pandas as pd
 # We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
 # representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
 class Embedding(ABC):
-
     def __init__(self, vocab_size: int, embedding_size: int, target_file: str, corpus_file: str):
         self.target_file: str = target_file  # File in which model is stored
         self.vocab_size: int = vocab_size
@@ -60,10 +59,9 @@ class WordEmbedding(Embedding):
         # We do the train and update our reference to model.
         return self.model.wv.vectors
 
-    def get_embedding_layer(self) -> keras.layers.Layer:
+    def build_embedding_layer(self) -> keras.layers.Layer:
         return keras.layers.Embedding(
-            input_dim=self.vocab_size, output_dim=self.embedding_size,
-            weights=self.get_weights(), trainable=False
+            input_dim=self.vocab_size, output_dim=self.embedding_size, weights=self.get_weights(), trainable=False
         )
 
     def load_model(self, override: bool = False):
@@ -78,10 +76,15 @@ class WordEmbedding(Embedding):
         # All that is required is that the input yields one sentence (list of utf8 words) after another
         # https://radimrehurek.com/gensim/auto_examples/tutorials/run_word2vec.html
         self.model = gensim.models.Word2Vec(
-            sentences=self.load_corpus(self.corpus_file, nlp), vector_size=self.embedding_size, min_count=20, workers=8
+            sentences=self.load_corpus(self.corpus_file, nlp), vector_size=self.embedding_size, min_count=4, workers=8
         )
 
         self.model.save(self.target_file)
+
+    def load_corpus(self, corpus_file: str, nlp) -> list:
+        corpus = pd.read_csv(corpus_file, names=["comments"])["comments"]
+        lines = corpus.swifter.apply(lambda x: self.__try_tokenization(x, nlp)).dropna()
+        return [[tokenized.text for tokenized in line] for line in lines]
 
     @staticmethod
     def __try_tokenization(text: str, nlp):
@@ -90,9 +93,3 @@ class WordEmbedding(Embedding):
         except:
             print(f"{text} is not convertable")
             return None
-
-    def load_corpus(self, corpus_file: str, nlp) -> list:
-        # Ho ancora stringhe vuote da rimuovere
-        # todo: Ok ma lento. Attento alla punctuation che non mi serve. (overhead inutile)
-        lines = pd.read_csv(corpus_file, names=["comments"])["comments"].swifter.apply(lambda x: nlp(x))
-        return [[tokenized.text for tokenized in line] for line in lines]

@@ -9,6 +9,9 @@ However, if memory efficiency is a critical issue or if the rare words significa
 consider selectively removing them based on criteria such as document frequency.
 
 - Remove links and numbers?
+- Remvoe dates
+- Remove emojis like
+  - b]complexity:[/b simple):star::star::star::star::nostar complex b]
 ## PENDING
 
 - Usare le issue (Sarebbe comdoo)
