@@ -3,6 +3,8 @@ import layer
 
 import keras
 
+import model.embeddings
+
 
 class ModelGenerator:
     def __init__(self, input_shape: tuple):
@@ -27,40 +29,46 @@ class CustomEmbeddingsModelGenerator(ModelGenerator):
 
 
 class ABAEModelGenerator(ModelGenerator):
-    def __init__(self, input_shape: tuple, vocabulary: list, embedding_size: int, aspect_size: int):
+    def __init__(self, input_shape: tuple, embeddings_model: model.embeddings.Embedding,
+                 aspect_embeddings_model: model.embeddings.AspectEmbedding):
+        """
+        @param input_shape: Input shape of the model
+        @param embeddings_model: Object that has the vocabulary, matrices to generate embeddings etc.
+        """
         super(ABAEModelGenerator, self).__init__(input_shape=input_shape)
-        self.vocabulary = vocabulary
 
-        self.aspect_size = aspect_size
-        self.embedding_size = embedding_size
+        self.embeddings_model = embeddings_model
+        self.aspect_embeddings_model = aspect_embeddings_model
 
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        vocabulary_size = len(self.vocabulary)
-
-        input_layer = keras.layers.Input(shape=self.input_shape, name='input')
-        # todo -------------------------
-        embedding_layer = keras.layers.Embedding(vocabulary_size, self.embedding_size, mask_zero=True, name='embedding')
-        # todo load parameters of embedding model
-        # todo -------------------------
+        """
+        We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
+        on word embeddings. Other parameters are initialized randomly. ~ Rudan
+            -> Can we just randomly initialize them?
+        @return:
+        """
+        input_layer = keras.layers.Input(shape=self.input_shape, name='input', dtype='int32')
+        embedding_layer = self.embeddings_model.build_embedding_layer(layer_name="word_embedding")
 
         embeddings = embedding_layer(input_layer)
         avg = layer.MaskedAverage()(embeddings)
-
-        # todo: On code of paper it was inverse Attention call but impl was custom.
-        #       Check that they behave the same
-        attention_weights = keras.layers.Attention()([avg, embeddings])
+        # https://stackoverflow.com/questions/70034327/understanding-key-dim-and-num-heads-in-tf-keras-layers-multiheadattention
+        # todo: On code of paper it was inverse Attention call but impl was custom. Check that they behave the same.
+        attention_weights = keras.layers.MultiHeadAttention(num_heads=4, key_dim=32)(
+            query=avg, key=embeddings, value=embeddings
+        )
+        # attention_weights = keras.layers.MultiHeadAttention(num_heads=4, key_dim=32)([avg, embeddings])
         weighted_positive = layer.WeightedSumLayer()(embeddings, attention_weights)
 
         # Negative representation for negative feedback
-        negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input')
+        negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input', dtype='int32')
         negative_embeddings = embedding_layer(negative_input_layer)
+
         avg_neg = layer.MaskedAverage()(list(negative_embeddings))
 
         # Sentence reconstruction
-        dense_layer = keras.layers.Dense(units=self.aspect_size, activation='softmax')
-        # todo finish (load parameters for embedding model.
-        aspect_embeddings = keras.layers.Embedding(
-            input_dim=self.aspect_size, output_dim=self.embedding_size, embeddings_regularizer=None
-        )(dense_layer)
+        dense_layer = keras.layers.Dense(units=self.aspect_embeddings_model.aspect_size, activation='softmax')
+        aspect_embeddings = self.aspect_embeddings_model.build_embedding_layer("aspect_embedding")(dense_layer)
+
         output = layer.MaxMargin()([weighted_positive, avg_neg, aspect_embeddings])
         return [input_layer, negative_input_layer], output
