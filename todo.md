@@ -1,6 +1,6 @@
 ## IMPROTANTE
 
-- Remove links and numbers?
+- Remove links and numbers? -> NEXT TODO
 - Remvoe dates
 - Remove emojis like
     - b]complexity:[/b simple):star::star::star::star::nostar complex b]

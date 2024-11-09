@@ -54,9 +54,10 @@ class ABAEModelGenerator(ModelGenerator):
         avg = layer.MaskedAverage()(embeddings)
         # https://stackoverflow.com/questions/70034327/understanding-key-dim-and-num-heads-in-tf-keras-layers-multiheadattention
         # todo: On code of paper it was inverse Attention call but impl was custom. Check that they behave the same.
-        attention_weights = keras.layers.MultiHeadAttention(num_heads=4, key_dim=32)(
+        attention_weights = keras.layers.MultiHeadAttention(num_heads=8, key_dim=16)(
             query=avg, key=embeddings, value=embeddings
         )
+
         # attention_weights = keras.layers.MultiHeadAttention(num_heads=4, key_dim=32)([avg, embeddings])
         weighted_positive = layer.WeightedSumLayer()(embeddings, attention_weights)
 
@@ -64,10 +65,11 @@ class ABAEModelGenerator(ModelGenerator):
         negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input', dtype='int32')
         negative_embeddings = embedding_layer(negative_input_layer)
 
-        avg_neg = layer.MaskedAverage()(list(negative_embeddings))
+        avg_neg = layer.MaskedAverage()(negative_embeddings)
 
         # Sentence reconstruction
-        dense_layer = keras.layers.Dense(units=self.aspect_embeddings_model.aspect_size, activation='softmax')
+        aspect_size = self.aspect_embeddings_model.aspect_size
+        dense_layer = keras.layers.Dense(units=aspect_size, activation='softmax')(weighted_positive)
         aspect_embeddings = self.aspect_embeddings_model.build_embedding_layer("aspect_embedding")(dense_layer)
 
         output = layer.MaxMargin()([weighted_positive, avg_neg, aspect_embeddings])

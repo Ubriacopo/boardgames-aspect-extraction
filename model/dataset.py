@@ -46,42 +46,26 @@ class CommentDataset(Dataset):
     https://stackoverflow.com/questions/27717776/lazy-loading-csv-with-pandas
     """
 
-    def __init__(self, csv_dataset_path: str = ""):
+    def __init__(self, vocabulary, csv_dataset_path: str = ""):
+        self.vocabulary: dict = vocabulary
         # Is way faster than having to reload it at each iteration.
         self.dataset = pd.read_csv(csv_dataset_path, names=["comments"]).dropna()
         self.dataset = self.dataset["comments"].swifter.apply(lambda x: [token.text for token in self.nlp(x)])
-
-        # Generate the vocabulary or load it if it exists
-        if os.path.exists(f"{csv_dataset_path}.vocab"):
-            self.vocab = pd.read_csv(f"{csv_dataset_path}.vocab")
-        else:
-            self.vocab = pd.DataFrame(list(self.__generate_vocabulary().items()), columns=["token", "times"])
-            self.vocab.sort_values(by="times", inplace=True, ascending=False)
-
-            # Index is the important element. Times is just an enrichment but could be dropped as
-            # the info it carries is not really required from now on.
-            self.vocab.to_csv(f"{csv_dataset_path}.vocab", index=True)
-
-            # Should I save already processed dataset?
-
         print(self.dataset.memory_usage(deep=True))
         print(self.dataset.info(memory_usage='deep'))
 
-    def __generate_vocabulary(self) -> dict:
-        # Default two terms. (We do zero masking?)
-        vocabulary = {"<unk>": 0, "<pad>": 1}
-        # todo empty spaces ci sono ancora
-        for entry in self.dataset:
-            for e in entry:  # We factorized the text in order to have arrays of words
-                vocabulary[e] = 1 if e not in vocabulary else vocabulary.get(e) + 1
-        return vocabulary
-
     def __getitem__(self, index):
-        # todo vedi
-        return [self.vocab[token]["index"] for token in self.dataset.at[index + 1]]
+        indexes = []
+        # Map each word to the correct representation. If it does not exist 0 is returned as it is the <unk> key.
+        for token in self.dataset.at[index + 1]:
+            indexes.append(self.vocabulary[token] if token in self.vocabulary else 0)
+        return indexes
 
     def __len__(self):
         return len(self.dataset)
+
+    def get_raw_sentence(self, index):
+        return self.dataset.at[index + 1]
 
 
 class VocabularyDataset(Dataset):

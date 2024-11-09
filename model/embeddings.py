@@ -7,6 +7,7 @@ import keras
 import pandas as pd
 import spacy
 from sklearn.cluster import KMeans
+from keras import ops as K
 
 
 # Todo move somewhere else
@@ -151,6 +152,7 @@ class AspectEmbedding(Embedding):
     
     So do we now.
     """
+
     def load_model(self, override: bool = False):
         if not override and Path(self.target_model_file).exists():
             self.model = pickle.load(open(self.target_model_file, "rb"))
@@ -164,7 +166,9 @@ class AspectEmbedding(Embedding):
         if self.model is None:
             self.load_model(override=False)
 
-        return keras.regularizers.L2(self.model.cluster_centers_)
+        # Default value for L2 regularize
+        regularize = keras.regularizers.L2(l2=0.01)
+        return regularize(self.model.cluster_centers_) * K.convert_to_tensor(self.model.cluster_centers_)
 
     def get_vocab(self):
-        pass  # Not used as it has None (?). Actually we should have ! (The main aspects)
+        pass  # Not used as it has   None (?). Actually we should have ! (The main aspects)

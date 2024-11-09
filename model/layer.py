@@ -37,6 +37,10 @@ class WeightedSumLayer(keras.layers.Layer):
 
         return keras.ops.sum(x * w, axis=1)
 
+    def compute_output_shape(self, input_shape):
+        # TODO: Controlla se None davanti per Batch size
+        return None, input_shape[1], input_shape[-1]
+
 
 # Todo finish to check
 class MaxMargin(keras.layers.Layer):
@@ -67,3 +71,7 @@ class MaxMargin(keras.layers.Layer):
         loss = keras.ops.cast(keras.ops.sum(keras.ops.maximum(0, (1. - pos + neg)), axis=-1, keepdims=True),
                               keras.backend.floatx())
         return loss
+
+    def compute_output_shape(self, input_shape):
+        # Ah boh indovina la shape corretta
+        return None, input_shape[2][2] # Might be correct But bohh
