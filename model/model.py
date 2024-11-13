@@ -29,13 +29,16 @@ class CustomEmbeddingsModelGenerator(ModelGenerator):
 
 
 class ABAEModelGenerator(ModelGenerator):
-    def __init__(self, input_shape: tuple, embeddings_model: model.embeddings.Embedding,
+    def __init__(self, input_shape: tuple, max_seq_length: int, negative_length: int,
+                 embeddings_model: model.embeddings.Embedding,
                  aspect_embeddings_model: model.embeddings.AspectEmbedding):
         """
         @param input_shape: Input shape of the model
         @param embeddings_model: Object that has the vocabulary, matrices to generate embeddings etc.
         """
         super(ABAEModelGenerator, self).__init__(input_shape=input_shape)
+        self.max_seq_length = max_seq_length
+        self.negative_length = negative_length
 
         self.embeddings_model = embeddings_model
         self.aspect_embeddings_model = aspect_embeddings_model
@@ -47,22 +50,26 @@ class ABAEModelGenerator(ModelGenerator):
             -> Can we just randomly initialize them?
         @return:
         """
-        input_layer = keras.layers.Input(shape=self.input_shape, name='input', dtype='int32')
+        input_layer = keras.layers.Input(shape=(self.max_seq_length,), name='input', dtype='int32')
+        # Negative representation for negative feedback
+        negative_input_layer = keras.layers.Input(
+            shape=(self.negative_length, self.max_seq_length), name='negative_input', dtype='int32'
+        )
+
         embedding_layer = self.embeddings_model.build_embedding_layer(layer_name="word_embedding")
+        embedding_layer.trainable = False
 
         embeddings = embedding_layer(input_layer)
         avg = layer.MaskedAverage()(embeddings)
         # https://stackoverflow.com/questions/70034327/understanding-key-dim-and-num-heads-in-tf-keras-layers-multiheadattention
         # todo: On code of paper it was inverse Attention call but impl was custom. Check that they behave the same.
-        attention_weights = keras.layers.MultiHeadAttention(num_heads=8, key_dim=16)(
+        attention_weights = keras.layers.MultiHeadAttention(num_heads=8, key_dim=16, name="multihead_attention")(
             query=avg, key=embeddings, value=embeddings
         )
 
         # attention_weights = keras.layers.MultiHeadAttention(num_heads=4, key_dim=32)([avg, embeddings])
         weighted_positive = layer.WeightedSumLayer()(embeddings, attention_weights)
 
-        # Negative representation for negative feedback
-        negative_input_layer = keras.layers.Input(shape=self.input_shape, name='negative_input', dtype='int32')
         negative_embeddings = embedding_layer(negative_input_layer)
 
         avg_neg = layer.MaskedAverage()(negative_embeddings)

@@ -1,8 +1,12 @@
 import os
-
+import numpy
 import pandas as pd
 import spacy
+import torch
 from torch.utils.data import Dataset
+from keras import ops as K
+from keras import preprocessing as pre
+import numpy as np
 
 
 class LazyCommentDataset(Dataset):
@@ -46,7 +50,8 @@ class CommentDataset(Dataset):
     https://stackoverflow.com/questions/27717776/lazy-loading-csv-with-pandas
     """
 
-    def __init__(self, vocabulary, csv_dataset_path: str = ""):
+    def __init__(self, vocabulary: dict, csv_dataset_path: str = ""):
+        super(CommentDataset).__init__()
         self.vocabulary: dict = vocabulary
         # Is way faster than having to reload it at each iteration.
         self.dataset = pd.read_csv(csv_dataset_path, names=["comments"]).dropna()
@@ -57,8 +62,10 @@ class CommentDataset(Dataset):
     def __getitem__(self, index):
         indexes = []
         # Map each word to the correct representation. If it does not exist 0 is returned as it is the <unk> key.
+        zero = torch.tensor(0, dtype=torch.int16)
         for token in self.dataset.at[index + 1]:
-            indexes.append(self.vocabulary[token] if token in self.vocabulary else 0)
+            indexes.append(
+                torch.tensor(self.vocabulary[token], dtype=torch.int16) if token in self.vocabulary else zero)
         return indexes
 
     def __len__(self):
@@ -68,41 +75,30 @@ class CommentDataset(Dataset):
         return self.dataset.at[index + 1]
 
 
-class VocabularyDataset(Dataset):
-    nlp = spacy.blank("en")
+class PositiveNegativeCommentGeneratorDataset(Dataset):
 
-    # todo end
-    def __init__(self, vocabulary, max_sequence_length: int = 256, batch_size: int = 30, csv_dataset_path: str = ""):
-        """
+    def generate_numeric_representation(self, entry):
+        # Map each word to the correct representation. If it does not exist 0 is returned as it is the <unk> key.
+        return np.array([self.vocabulary[token] if token in self.vocabulary else 0 for token in entry])
 
-        @param word2vec_model: gensim.Word2Vec model
-        @param max_sequence_length:
-        @param batch_size:
-        @param csv_dataset_path:
-        """
-        super(VocabularyDataset).__init__()
+    def __init__(self, csv_dataset_path: str, vocabulary: dict, negative_size: int):
+        super(PositiveNegativeCommentGeneratorDataset).__init__()
+        self.nlp = spacy.blank("en")
+        self.vocabulary: dict = vocabulary
+        # Is way faster than having to reload it at each iteration.
+        self.dataset = pd.read_csv(csv_dataset_path, names=["comments"]).dropna()
+        self.dataset = self.dataset["comments"].head(1000).swifter.apply(
+            lambda x: self.generate_numeric_representation([token.text for token in self.nlp(x)])
+        )
 
-        if not os.path.exists(csv_dataset_path):
-            raise FileNotFoundError("To process a corpus the file has to exist. Please pre-process the corpus "
-                                    "before starting. As the procedure might take some time, it won't be launched now.")
-
-        self.max_sequence_length = max_sequence_length
-        self.csv_dataset_path = csv_dataset_path
-        self.chunk_size = batch_size
-        self.vocabulary = vocabulary
+        self.max_seq_length = self.dataset.map(lambda x: len(x)).max()
+        self.dataset = pd.Series(pre.sequence.pad_sequences(self.dataset, maxlen=self.max_seq_length).tolist())
+        self.negative_size = negative_size
 
     def __getitem__(self, index):
-        # Read the batch of rows of our dataset
-        x = next(pd.read_csv(self.csv_dataset_path, skiprows=index * self.chunk_size + 1, chunksize=self.chunk_size))
-        # Tokenize them.
-        x = [self.nlp(e) for e in x]
+        # For each input sentence, we randomly sample m sentences from our training data as negative samples
+        # Stack to get rid of lists and create nice numpy arrays to be elaborated
+        return [np.array(self.dataset.at[index + 1]), np.stack(self.dataset.sample(n=self.negative_size).to_numpy())], 0
 
-        # Filter only relevant entries (this is to mitigate the problem we had in preprocessing and will be removed)
-        # todo Rimuovi questa istruzione quando rifai il pre-processed dataset.
-        x = [[i.text for i in row if not i.is_punct and not i.is_currency] for row in x]
-
-        # Load previous model to get the index representation of the word to return to the model
-
-        # todo handle unknown e pad
-        # wv.vocab[i].index todo vedi il tipo di vocabulary
-        return [self.vocabulary.index for i in x]
+    def __len__(self):
+        return len(self.dataset)

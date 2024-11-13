@@ -5,7 +5,7 @@
 - Remove emojis like
     - b]complexity:[/b simple):star::star::star::star::nostar complex b]
 - json readable config  (guarda progetto al lavoroe copia)
-
+- Truncate too long sequences (too long comments will be ignored?)
 ## PENDING
 
 - Usare le issue (Sarebbe comdoo)
