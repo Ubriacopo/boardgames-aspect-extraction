@@ -97,8 +97,14 @@ class PositiveNegativeCommentGeneratorDataset(Dataset):
 
     def __getitem__(self, index):
         # For each input sentence, we randomly sample m sentences from our training data as negative samples
-        # Stack to get rid of lists and create nice numpy arrays to be elaborated
-        return [np.array(self.dataset.at[index + 1]), np.stack(self.dataset.sample(n=self.negative_size).to_numpy())], 0
+        # Stack to get rid of lists and create nice numpy arrays to be elaborated/\
+        """
+        TODO: Found error, embedding are empty for some rows
+        """
+        sample = np.array(self.dataset.at[index + 1])
+        negative_samples = np.stack(self.dataset.sample(n=self.negative_size).to_numpy())
+        return [sample, negative_samples], [0, 0]
 
     def __len__(self):
-        return len(self.dataset)
+        # return len(self.dataset)
+        return 999  # Testing the full cycle

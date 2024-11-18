@@ -8,6 +8,7 @@ import pandas as pd
 import spacy
 from sklearn.cluster import KMeans
 from keras import ops as K
+import model.layer
 
 
 # Todo move somewhere else
@@ -102,8 +103,7 @@ class WordEmbedding(Embedding):
         actual_vocab_size = len(self.model.wv.key_to_index)
         return keras.layers.Embedding(
             input_dim=actual_vocab_size, output_dim=self.embedding_size,
-            # Should my embeddings be trainable?  Good question! todo: Think about it
-            weights=self.get_weights(), trainable=True, name=layer_name, mask_zero=True
+            weights=self.get_weights(), trainable=False, name=layer_name, mask_zero=True
         )
 
     def load_model(self, override: bool = False):
@@ -141,11 +141,7 @@ class AspectEmbedding(Embedding):
         self.base_embeddings = base_embeddings
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return keras.layers.Embedding(
-            input_dim=self.aspect_size, output_dim=self.embedding_size, weights=self.get_weights(),
-            embeddings_regularizer=keras.regularizers.OrthogonalRegularizer(factor=0.1, mode="rows")
-        )
-
+        return model.layer.WeightedAspectEmb(input_dim=4, output_dim=128, weights=self.get_weights())
     """
     We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
     on word embeddings. Other parameters are initialized randomly. ~ Rudan
