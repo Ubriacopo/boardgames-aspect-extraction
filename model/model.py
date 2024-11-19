@@ -24,7 +24,7 @@ class CustomEmbeddingsModelGenerator(ModelGenerator):
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         pass
 
-
+# todo: fn load existing model, generate training model and generate eval model
 class ABAEGenerator(ModelGenerator):
     def __init__(self, max_seq_length: int, negative_length: int, embeddings_model: model.embeddings.Embedding,
                  aspect_embeddings_model: model.embeddings.AspectEmbedding):

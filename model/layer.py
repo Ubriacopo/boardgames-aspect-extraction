@@ -1,5 +1,5 @@
 """
-
+todo sistema sto file
 class MaskedAverage(keras.layers.Layer):
     def __init__(self, **kwargs):
         self.supports_masking = True

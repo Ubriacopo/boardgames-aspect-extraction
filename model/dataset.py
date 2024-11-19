@@ -76,7 +76,7 @@ class CommentDataset(Dataset):
 
 
 class PositiveNegativeCommentGeneratorDataset(Dataset):
-
+    # todo give maxsequence len
     def generate_numeric_representation(self, entry):
         # Map each word to the correct representation. If it does not exist 0 is returned as it is the <unk> key.
         return np.array([self.vocabulary[token] if token in self.vocabulary else 0 for token in entry])

@@ -141,7 +141,8 @@ class AspectEmbedding(Embedding):
         self.base_embeddings = base_embeddings
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return model.layer.WeightedAspectEmb(input_dim=4, output_dim=128, weights=self.get_weights())
+        return model.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.get_weights())
+
     """
     We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
     on word embeddings. Other parameters are initialized randomly. ~ Rudan
