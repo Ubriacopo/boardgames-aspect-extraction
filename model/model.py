@@ -57,5 +57,6 @@ class ABAEGenerator(ModelGenerator):
         dense_layer = keras.layers.Dense(units=aspect_size, activation='softmax')(weighted_positive)
         aspect_embeddings = self.aspect_emb_model.build_embedding_layer("aspect_embedding")(dense_layer)
 
-        output = layer.MaxMargin()([weighted_positive, neg_average, aspect_embeddings])
-        return [pos_input_layer, neg_input_layer], output
+        output = layer.MaxMargin(name="max_margin")([weighted_positive, neg_average, aspect_embeddings])
+        # Model outputs: [Loss, AttentionWeights, AspectProbability]
+        return [pos_input_layer, neg_input_layer], [output, att_weights, dense_layer]
