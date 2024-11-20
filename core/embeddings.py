@@ -4,44 +4,19 @@ from pathlib import Path
 import swifter
 import gensim.models
 import keras
-import pandas as pd
-import spacy
 from sklearn.cluster import KMeans
 from keras import ops as K
-import model.layer
+import core.layer
 
 
-# Todo move somewhere else
-class LoadCorpusUtility:
-    def __init__(self):
-        """
-        This utility considers the corpus as already pre-processed
-        """
-
-        # https://www.kaggle.com/code/pierremegret/gensim-word2vec-tutorial
-        # We are basically splitting only as the text was already pre-processed.
-
-        self.nlp = spacy.blank("en")
-
-    def _try_tokenization(self, text: str):
-        try:
-            return self.nlp(text)
-        except Exception as exception:
-            # todo: Use logger
-            print(exception)  # Show the real exception
-            print(f"Given text: '{text}' was not convertable")
-
-    def load_corpus(self, corpus_file: str) -> list:
-        corpus = pd.read_csv(corpus_file, names=["comments"])["comments"]
-        lines = corpus.swifter.apply(lambda x: self._try_tokenization(x)).dropna()
-        return [[tokenized.text for tokenized in line] for line in lines]
-
-
-# We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
-# representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
 class Embedding(ABC):
+    """
+    We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
+    representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
+    """
+
     def __init__(self, embedding_size: int, target_model_file: str):
-        self.target_model_file: str = target_model_file  # File in which model is stored
+        self.target_model_file: str = target_model_file  # File in which core is stored
         self.embedding_size: int = embedding_size
 
     @abstractmethod
@@ -75,7 +50,7 @@ class Embedding(ABC):
 class WordEmbedding(Embedding):
 
     def __init__(self, corpus_loader_utility, max_vocab_size: int, embedding_size: int,
-                 target_model_file: str, corpus_file: str, min_word_count: int = 4):
+                 target_model_file: str, corpus_file: str, min_word_count: int = 8):
         """
         As a good reference look at: https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
         @param corpus_loader_utility:
@@ -87,7 +62,8 @@ class WordEmbedding(Embedding):
         """
         super(WordEmbedding, self).__init__(embedding_size, target_model_file)
         self.corpus_loader_utility = corpus_loader_utility
-        self.model: gensim.models.Word2Vec | None = None  # None loaded
+
+        self.model: gensim.models.Word2Vec | None = None  # None loaded by default.
 
         self.max_vocab_size: int = max_vocab_size
         self.corpus_file: str = corpus_file
@@ -96,7 +72,7 @@ class WordEmbedding(Embedding):
     def get_weights(self):
         if self.model is None:
             self.load_model(override=False)
-        # We do the train and update our reference to model.
+        # We do the train and update our reference to core.
         return self.model.wv.vectors
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
@@ -107,10 +83,10 @@ class WordEmbedding(Embedding):
         )
 
     def load_model(self, override: bool = False):
-        # Load the already created model if we don't want to override it
+        # Load the already created core if we don't want to override it
         if not override and Path(self.target_model_file).exists():
             self.model = gensim.models.Word2Vec.load(str(Path(self.target_model_file)))
-        else:  # Generate a new model if none exists
+        else:  # Generate a new core if none exists
             # All that is required is that the input yields one sentence (list of utf8 words) after another
             # https://radimrehurek.com/gensim/auto_examples/tutorials/run_word2vec.html
             self.model = gensim.models.Word2Vec(
@@ -122,41 +98,42 @@ class WordEmbedding(Embedding):
 
     def get_vocab(self) -> object:
         """
-        If the model cannot be built we throw an error.
+        If the core cannot be built we throw an error.
         @return: object with keys-value pairs for text-int encoding
         """
         if self.model is None:
-            # I have to load the model
+            # I have to load the core
             self.load_model(override=False)
 
         return self.model.wv.key_to_index
 
 
 class AspectEmbedding(Embedding):
-    model: KMeans
+    core: KMeans
 
     def __init__(self, aspect_size: int, embedding_size: int, target_model_file: str, base_embeddings: Embedding):
         super(AspectEmbedding, self).__init__(embedding_size, target_model_file)
+
+        self.model: KMeans | None = None
+
         self.aspect_size = aspect_size
         self.base_embeddings = base_embeddings
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return model.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.get_weights())
-
-    """
-    We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
-    on word embeddings. Other parameters are initialized randomly. ~ Rudan
-    
-    So do we now.
-    """
+        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.get_weights())
 
     def load_model(self, override: bool = False):
         if not override and Path(self.target_model_file).exists():
             self.model = pickle.load(open(self.target_model_file, "rb"))
-        else:  # Generate the model as it does not exist
+        else:  # Generate the core as it does not exist
+            """
+            We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
+            on word embeddings. Other parameters are initialized randomly. ~ Ruidan
+            So do we now
+            """
             self.model = KMeans(n_clusters=self.aspect_size)
             self.model.fit(self.base_embeddings.get_weights())
-            # Persist the model in our disk
+            # Persist the core in our disk
             pickle.dump(self.model, open(self.target_model_file, "wb"))
 
     def get_weights(self):
@@ -168,4 +145,14 @@ class AspectEmbedding(Embedding):
         return regularize(self.model.cluster_centers_) * K.convert_to_tensor(self.model.cluster_centers_)
 
     def get_vocab(self):
-        pass  # Not used as it has   None (?). Actually we should have ! (The main aspects)
+        """
+        Our aspects have label (yet associated). We could opt for the most representative word, yet for that we have to
+        calculate it or infer by hand the meaning, for now it simply is a number (its index).
+        @return: The built vocabulary
+        """
+        vocabulary = dict()
+
+        for i in range(self.aspect_size):
+            vocabulary[i] = i
+
+        return vocabulary

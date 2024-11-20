@@ -6,12 +6,12 @@ from typing import Final
 import pandas as pd
 from pandas import DataFrame, Series
 
-from bgg_service.bgg_retriever_service import BggRetrieverService
+from core.service.bgg_retriever_service import BggRetrieverService
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
-# todo change name? to download service o altro
-class BggCorpusService:
+
+class BggCorpusDownloaderService:
     BGG_URL: Final[str] = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
 
     def __init__(self, retriever_service: BggRetrieverService,

@@ -8,7 +8,6 @@ from fast_langdetect import detect
 
 from spacy.lang.en import stop_words
 
-# spacy.prefer_gpu()
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 

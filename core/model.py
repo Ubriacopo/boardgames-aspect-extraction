@@ -2,8 +2,9 @@ from abc import abstractmethod
 import layer
 
 import keras
-
-import model.embeddings
+from utils import max_margin_loss
+import core.embeddings
+from keras import ops as K
 
 
 class ModelGenerator:
@@ -11,23 +12,20 @@ class ModelGenerator:
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         pass
 
-    def make_model(self):
+    def make_training_model(self, existing_model_path: str = None):
+        return self.make_model(existing_model_path)
+
+    def make_model(self, existing_model_path: str = None):
+        if existing_model_path is not None:
+            return keras.models.load_model(existing_model_path)
         inputs, outputs = self.make_layers()
         return keras.Model(inputs=inputs, outputs=outputs)
 
 
-class CustomEmbeddingsModelGenerator(ModelGenerator):
-    def __init__(self, input_shape: tuple, vocabulary: list):
-        super(CustomEmbeddingsModelGenerator, self).__init__(input_shape)
-        self.vocabulary = vocabulary
-
-    def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        pass
-
 # todo: fn load existing model, generate training model and generate eval model
 class ABAEGenerator(ModelGenerator):
-    def __init__(self, max_seq_length: int, negative_length: int, embeddings_model: model.embeddings.Embedding,
-                 aspect_embeddings_model: model.embeddings.AspectEmbedding):
+    def __init__(self, max_seq_length: int, negative_length: int, embeddings_model: core.embeddings.Embedding,
+                 aspect_embeddings_model: core.embeddings.AspectEmbedding):
         self.max_seq_length = max_seq_length
         self.negative_length = negative_length
 
@@ -35,7 +33,6 @@ class ABAEGenerator(ModelGenerator):
         self.aspect_emb_model = aspect_embeddings_model
 
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        # Probabilemnte sbaglio nell'unboxing dei valori
         positive_input_shape = (self.max_seq_length,)
         negative_input_shape = (self.negative_length, self.max_seq_length)
 
@@ -60,3 +57,23 @@ class ABAEGenerator(ModelGenerator):
         output = layer.MaxMargin(name="max_margin")([weighted_positive, neg_average, aspect_embeddings])
         # Model outputs: [Loss, AttentionWeights, AspectProbability]
         return [pos_input_layer, neg_input_layer], [output, att_weights, dense_layer]
+
+    def make_training_model(self, existing_model_path: str = None):
+        if existing_model_path is not None:
+            model = keras.models.load_model(existing_model_path, custom_objects={'max_margin_loss': max_margin_loss})
+            return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+
+        inputs, outputs = self.make_layers()
+        return keras.Model(inputs=inputs, outputs=outputs[0])
+
+    def make_model(self, existing_model_path: str = None):
+        if existing_model_path is not None:
+            model = keras.models.load_model(existing_model_path, custom_objects={'max_margin_loss': max_margin_loss})
+
+            if len(model.outputs) == 1:
+                outputs = [model.outputs[0], model.layers[3].output, model.layers[6].output]
+                return keras.Model(inputs=model.inputs, outputs=outputs)
+
+            return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+
+        return super().make_model(None)

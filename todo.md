@@ -28,3 +28,6 @@
 [x] Rimuovere punteggiatura da pre-processing
 
 https://github.com/ruidan/Unsupervised-Aspect-Extraction/tree/master
+
+    # TODO Fix the generation but in general not known sentences should maybe be filtered somehow
+    #           but for sure not cause the model to break
