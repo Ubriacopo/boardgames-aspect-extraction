@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from typing import Final
-
+import spacy_transformers
 import pandas as pd
 from pandas import DataFrame, Series
 
@@ -14,7 +14,7 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H
 class BggCorpusDownloaderService:
     BGG_URL: Final[str] = "https://boardgamegeek.com/xmlapi2/thing?id={id}&stats=1&comments=1&page={page}"
 
-    def __init__(self, retriever_service: BggRetrieverService,
+    def __init__(self, retriever_service: BggRetrieverService, pages_per_game: int = 25,
                  game_list_csv_path: str = "../../resources/2024-08-18.csv",
                  download_file_path: str = "./../../data/corpus.csv"):
         """
@@ -25,6 +25,7 @@ class BggCorpusDownloaderService:
         """
         self.retriever_service = retriever_service
         self.game_list_csv_path = game_list_csv_path
+        self.pages_per_game: int = pages_per_game
         self.games_dataframe: DataFrame = pd.read_csv(game_list_csv_path)
         self.download_file_path: str = download_file_path
 
@@ -63,9 +64,7 @@ class BggCorpusDownloaderService:
             up_to = size if size < next_batch_end else next_batch_end
 
             ids = non_downloaded_dataframe[i * download_batch_size:up_to]["ID"]
-            # Download multiple pages (We set custom max of 20 -> 2.5k comments per game max)
-            # I might have to stop early as no more page are available? todo
-            for page in range(25):
+            for page in range(self.pages_per_game):
                 self._download_page(page, ids)
 
             logging.info(f"{self.__class__.__name__}:download_corpus: "

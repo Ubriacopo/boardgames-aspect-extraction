@@ -1,10 +1,10 @@
 from abc import abstractmethod
-import layer
 
 import keras
-from utils import max_margin_loss
+
 import core.embeddings
-from keras import ops as K
+import layer
+from utils import max_margin_loss
 
 
 class ModelGenerator:
@@ -22,7 +22,6 @@ class ModelGenerator:
         return keras.Model(inputs=inputs, outputs=outputs)
 
 
-# todo: fn load existing model, generate training model and generate eval model
 class ABAEGenerator(ModelGenerator):
     def __init__(self, max_seq_length: int, negative_length: int, embeddings_model: core.embeddings.Embedding,
                  aspect_embeddings_model: core.embeddings.AspectEmbedding):

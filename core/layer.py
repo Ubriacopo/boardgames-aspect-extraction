@@ -183,7 +183,7 @@ class Average(Layer):
         return input_shape[0:-2] + input_shape[-1:]
 
 
-# todo turn into loss?
+# todo turn into loss? Cant beacuse of the shape of the output!
 class MaxMargin(Layer):
     def __init__(self, **kwargs):
         super(MaxMargin, self).__init__(**kwargs)

@@ -6,7 +6,7 @@ import pandas as pd
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
-
+# todo rename to loadDataUtility e unificare con PreProcessingService in modo che siano alternabili
 class LoadCorpusUtility:
     def __init__(self, custom_language_model=None):
         """
