@@ -7,6 +7,7 @@ import keras
 from sklearn.cluster import KMeans
 from keras import ops as K
 import core.layer
+from core.utils import LoadDataUtility
 
 
 class Embedding(ABC):
@@ -49,7 +50,7 @@ class Embedding(ABC):
 
 class WordEmbedding(Embedding):
 
-    def __init__(self, corpus_loader_utility, max_vocab_size: int, embedding_size: int,
+    def __init__(self, corpus_loader_utility: LoadDataUtility, max_vocab_size: int, embedding_size: int,
                  target_model_file: str, corpus_file: str, min_word_count: int = 8):
         """
         As a good reference look at: https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
@@ -90,7 +91,7 @@ class WordEmbedding(Embedding):
             # All that is required is that the input yields one sentence (list of utf8 words) after another
             # https://radimrehurek.com/gensim/auto_examples/tutorials/run_word2vec.html
             self.model = gensim.models.Word2Vec(
-                sentences=self.corpus_loader_utility.load_corpus(self.corpus_file), vector_size=self.embedding_size,
+                sentences=self.corpus_loader_utility.load_data(self.corpus_file), vector_size=self.embedding_size,
                 min_count=self.min_word_count, workers=8, max_vocab_size=self.max_vocab_size
             )
 

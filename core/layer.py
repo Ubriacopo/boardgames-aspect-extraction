@@ -90,7 +90,7 @@ class WeightedSum(Layer):
         super(WeightedSum, self).__init__(**kwargs)
 
     def call(self, input_tensor, mask=None):
-        x, a = input_tensor
+        x, a = input_tensor  # Unpack the inputs
         return K.sum(x * K.expand_dims(a, axis=-1), axis=1)
 
     def compute_mask(self, x, mask=None):

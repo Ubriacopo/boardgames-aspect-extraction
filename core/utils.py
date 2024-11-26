@@ -1,13 +1,23 @@
 import logging
 import sys
+import swifter
+from abc import abstractmethod
+
 from keras import ops as K
 import spacy
 import pandas as pd
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
+
+class LoadDataUtility:
+    @abstractmethod
+    def load_data(self, data_file_path: str) -> list:
+        pass
+
+
 # todo rename to loadDataUtility e unificare con PreProcessingService in modo che siano alternabili
-class LoadCorpusUtility:
+class LoadCorpusUtility(LoadDataUtility):
     def __init__(self, custom_language_model=None):
         """
         This utility considers the corpus as already pre-processed by default. A different language model
@@ -26,8 +36,8 @@ class LoadCorpusUtility:
             logging.error(exception)  # Show the real exception
             logging.warning(f"Given text: '{text}' was not convertable")
 
-    def load_corpus(self, corpus_file: str) -> list:
-        corpus = pd.read_csv(corpus_file, names=["comments"])["comments"]
+    def load_data(self, data_file_path: str) -> list:
+        corpus = pd.read_csv(data_file_path, names=["comments"])["comments"]
         lines = corpus.swifter.apply(lambda x: self._try_tokenization(x)).dropna()
         return [[tokenized.text for tokenized in line] for line in lines]
 
