@@ -10,16 +10,15 @@ import pandas as pd
 import spacy
 from fast_langdetect import detect
 
-from core.utils import LoadDataUtility
-
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 
-class PreProcessingService(LoadDataUtility):
+class PreProcessingService:
     """
     It can be used as LoadDataUtility, but it won't be persisted. I should think well how to restructure this.
     Avoid it doing too much. I might pass it to a load corpus utility instead of inheriting from it. (Better idea) todo.
     """
+
     def __init__(self, extensive_logging: bool = False):
         # We use a small model as it is faster.
         self.nlp = spacy.load("en_core_web_sm")
@@ -89,11 +88,6 @@ class PreProcessingService(LoadDataUtility):
             logging.info(f"We had a problem processing the text {entry}")
             return None
 
-    def load_data(self, data_file_path: str) -> list:
-        reference_dataframe = pd.read_csv(data_file_path)
-        lines = reference_dataframe["comments"].swifter.apply(self.pre_process).dropna()
-        return [[pre_processed.text for pre_processed in line] for line in lines]
-
 
 def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",
                        target_file_path: str = "./data/corpus.preprocessed.og.csv", overwrite: bool = False):
@@ -116,6 +110,9 @@ def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",
     ps = PreProcessingService()
     save_frame = pd.DataFrame()
 
+    save_frame["game_id"] = reference_dataframe["game_id"]
+    save_frame["original_text"] = reference_dataframe["comments"]
     save_frame["comments"] = reference_dataframe["comments"].swifter.apply(ps.pre_process)
+
     save_frame = save_frame.dropna()
-    save_frame.to_csv(target_file_path, mode="w", header=False, index=False)
+    save_frame.to_csv(target_file_path, mode="w", header=True, index=False)

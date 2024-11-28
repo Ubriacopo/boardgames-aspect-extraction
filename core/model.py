@@ -32,7 +32,7 @@ class ABAEGenerator(ModelGenerator):
         self.aspect_emb_model = aspect_embeddings_model
 
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        positive_input_shape = (self.max_seq_length,)
+        positive_input_shape = (self.max_seq_length,) # 512
         negative_input_shape = (self.negative_length, self.max_seq_length)
 
         pos_input_layer = keras.layers.Input(shape=positive_input_shape, name='positive', dtype='int32')

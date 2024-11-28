@@ -7,6 +7,8 @@ from keras import ops as K
 import spacy
 import pandas as pd
 
+from core.pre_processing import PreProcessingService
+
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 
@@ -16,7 +18,16 @@ class LoadDataUtility:
         pass
 
 
-# todo rename to loadDataUtility e unificare con PreProcessingService in modo che siano alternabili
+class LoadCorpusAndProcessUtility(LoadDataUtility):
+    def __init__(self, pre_processing_service: PreProcessingService):
+        self.pre_processing_service = pre_processing_service
+
+    def load_data(self, data_file_path: str) -> list:
+        reference_dataframe = pd.read_csv(data_file_path)
+        lines = reference_dataframe["comments"].swifter.apply(self.pre_processing_service.pre_process).dropna()
+        return [[pre_processed.text for pre_processed in line] for line in lines]
+
+
 class LoadCorpusUtility(LoadDataUtility):
     def __init__(self, custom_language_model=None):
         """
