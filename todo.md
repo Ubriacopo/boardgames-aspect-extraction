@@ -1,5 +1,5 @@
 ## IMPROTANTE
--Are you sure that for Aspect Extraction I need to make a distinction between UNK and PAD? YES. 
+- Are you sure that for Aspect Extraction I need to make a distinction between UNK and PAD? YES. 
     - Reserve index 0 for padding (<PAD>).Use a different index (e.g., vocab_size + 1) for unknown words (<UNK>).
 
 
