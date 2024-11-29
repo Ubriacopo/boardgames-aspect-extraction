@@ -51,7 +51,7 @@ class Embedding(ABC):
 class WordEmbedding(Embedding):
 
     def __init__(self, corpus_loader_utility: LoadDataUtility, max_vocab_size: int, embedding_size: int,
-                 target_model_file: str, corpus_file: str, min_word_count: int = 8):
+                 target_model_file: str, corpus_file: str, min_word_count: int = 3):
         """
         As a good reference look at: https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
         @param corpus_loader_utility:

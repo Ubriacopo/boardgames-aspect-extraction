@@ -8,8 +8,8 @@ import swifter
 
 class PositiveNegativeCommentGeneratorDataset(Dataset):
     def generate_numeric_representation(self, entry):
-        # Map each word to the correct representation. If it does not exist 0 is returned as it is the <unk> key.
-        return np.array([self.vocabulary[token] if token in self.vocabulary else 0 for token in entry])
+        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
 
     def __init__(self, csv_dataset_path: str, vocabulary: dict, negative_size: int, max_seq_length: int = 256):
         """
@@ -59,9 +59,9 @@ class PositiveNegativeCommentGeneratorDataset(Dataset):
     def __getitem__(self, index: int):
         # For each input sentence, we randomly sample m sentences from our training data as negative samples
         # Stack to get rid of lists and create nice numpy arrays to be elaborated/\
-        sample = np.array(self.dataset.at[index + 1])
+        sample = np.array(self.dataset.at[index])
         negative_samples = np.stack(self.dataset.sample(n=self.negative_size).to_numpy())
         return [sample, negative_samples], [0, 0]
 
     def __len__(self):
-        return len(self.dataset)
+        return len(self.dataset) - 1
