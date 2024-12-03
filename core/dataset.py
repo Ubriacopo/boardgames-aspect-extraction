@@ -27,6 +27,8 @@ class PositiveNegativeCommentGeneratorDataset(Dataset):
         self.vocabulary: dict = vocabulary
         self.negative_size: int = negative_size
 
+        self.max_seq_length: int = max_seq_length
+
         print(f"Loading dataset from file: {csv_dataset_path}")
         self.dataset = pd.read_csv(csv_dataset_path).dropna()
 

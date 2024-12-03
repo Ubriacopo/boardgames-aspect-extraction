@@ -29,7 +29,7 @@ class LoadCorpusAndProcessUtility(LoadDataUtility):
 
 
 class LoadCorpusUtility(LoadDataUtility):
-    def __init__(self, custom_language_model=None, min_word_count=2):
+    def __init__(self, custom_language_model=None, min_word_count=2, column_name: str = "comments"):
         """
         This utility considers the corpus as already pre-processed by default. A different language model
         can be passed to apply a more complex pipeline.
@@ -42,6 +42,9 @@ class LoadCorpusUtility(LoadDataUtility):
         self.nlp = spacy.blank("en") if custom_language_model is None else custom_language_model
         self.min_word_count = min_word_count
 
+        # What is the column name that contains the data.
+        self.column_name = column_name
+
     def _try_tokenization(self, text: str, word_count: dict):
         try:
             return self.nlp(text)
@@ -51,7 +54,7 @@ class LoadCorpusUtility(LoadDataUtility):
             logging.warning(f"Given text: '{text}' was not convertable")
 
     def load_data(self, data_file_path: str) -> list:
-        corpus = pd.read_csv(data_file_path, names=["comments"])["comments"]
+        corpus = pd.read_csv(data_file_path)[self.column_name]
 
         word_count = dict()
         lines = corpus.swifter.apply(lambda x: self._try_tokenization(x, word_count)).dropna()
@@ -80,3 +83,21 @@ def max_margin_loss(y_true, y_pred):
     @return: The loss value.
     """
     return K.mean(y_pred, axis=-1)
+
+
+def subsample_corpus(corpus_file: str, target_file: str, quantity: int | float, random_state: int):
+    og_data = pd.read_csv(corpus_file)
+    print(f"Read file: {corpus_file}. It has {len(og_data)} rows.")
+    if type(quantity) is float:
+        quantity = int(len(og_data) * quantity)
+
+    reviews_per_game = int(quantity / len(og_data.groupby(["game_id"]).count())) + 1
+    print(f"For each game in the data we want to have {reviews_per_game} reviews.")
+    print("Subsample processes starting...")
+    (
+        og_data.groupby("game_id", group_keys=False)[og_data.columns]
+        .apply(lambda x: x.sample(min(len(x), reviews_per_game), random_state=random_state))
+        .to_csv(target_file, index=False)
+    )
+
+    print(f"Subsample processes completed. Created a file: {target_file}")
