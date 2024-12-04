@@ -32,7 +32,7 @@ class ABAEGenerator(ModelGenerator):
         self.aspect_emb_model = aspect_embeddings_model
 
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        positive_input_shape = (self.max_seq_length,) # 512
+        positive_input_shape = (self.max_seq_length,)  # 512
         negative_input_shape = (self.negative_length, self.max_seq_length)
 
         pos_input_layer = keras.layers.Input(shape=positive_input_shape, name='positive', dtype='int32')
@@ -59,8 +59,12 @@ class ABAEGenerator(ModelGenerator):
 
     def make_training_model(self, existing_model_path: str = None):
         if existing_model_path is not None:
-            model = keras.models.load_model(existing_model_path, custom_objects={'max_margin_loss': max_margin_loss})
-            return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+            try:
+                model = keras.models.load_model(existing_model_path,
+                                                custom_objects={'max_margin_loss': max_margin_loss})
+                return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+            except Exception as error:
+                print(error)
 
         inputs, outputs = self.make_layers()
         return keras.Model(inputs=inputs, outputs=outputs[0])

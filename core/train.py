@@ -9,7 +9,7 @@ from core.utils import LoadCorpusUtility
 class CoreModelManager:
     # Could be very well a simple datacalss to pass todo
     def __init__(self, corpus_file: str, embeddings_file: str, aspects_file: str, model_file: str,
-                 mav_vocab_size: int = 10000, word_embedding_size: int = 128, aspect_embedding_size: int = 128):
+                 max_vocab_size: int = 10000, word_embedding_size: int = 128, aspect_embedding_size: int = 128):
         self.embedding_model: WordEmbedding | None = None
         self.aspect_model: AspectEmbedding | None = None
 
@@ -17,7 +17,7 @@ class CoreModelManager:
         self.embeddings_file: str = embeddings_file
         self.aspects_file: str = aspects_file
         self.model_file: str = model_file
-        self.max_vocab_size: int = mav_vocab_size
+        self.max_vocab_size: int = max_vocab_size
         self.word_embedding_size: int = word_embedding_size
         self.aspect_embedding_size: int = aspect_embedding_size
         self.aspect_size: int | None = None
@@ -52,7 +52,8 @@ class CoreModelManager:
         if self.aspect_model is None or self.embedding_model is None:
             raise ValueError("You need to prepare the embeddings before training the model.")
 
-        self.generator = ABAEGenerator(max_sequence_length, negative_sample_size, self.embedding_model, self.aspect_model)
+        self.generator = ABAEGenerator(max_sequence_length, negative_sample_size, self.embedding_model,
+                                       self.aspect_model)
         self._train_model = self.generator.make_training_model(existing_model_path=self.model_file)
 
         # Compute the model with the max margin loss function and custom choice Optimizer
@@ -67,4 +68,3 @@ class CoreModelManager:
 
     def get_trained_model(self):
         return self.generator.make_model(self.model_file)
-
