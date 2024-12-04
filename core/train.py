@@ -1,3 +1,7 @@
+from abc import abstractmethod
+from dataclasses import dataclass
+from pathlib import Path
+
 from torch.utils.data import DataLoader
 
 from core.utils import max_margin_loss
@@ -6,65 +10,91 @@ from core.model import ABAEGenerator
 from core.utils import LoadCorpusUtility
 
 
-class CoreModelManager:
-    # Could be very well a simple datacalss to pass todo
-    def __init__(self, corpus_file: str, embeddings_file: str, aspects_file: str, model_file: str,
-                 max_vocab_size: int = 10000, word_embedding_size: int = 128, aspect_embedding_size: int = 128):
+@dataclass
+class AbaeModelConfiguration:
+    """
+      Configuration for the ABAE model.
+
+      Attributes:
+          corpus_file: Path to the corpus file.
+          model_name: str Name of model
+          max_vocab_size: Maximum size of the vocabulary.
+          word_embedding_size: Size of the word embeddings.
+          aspect_embedding_size: Size of the aspect embeddings.
+          aspect_size: Number of aspects.
+          max_sequence_length: Maximum length of the input sequences.
+          negative_sample_size: Number of negative samples.
+          output_path: Where files are stored
+    """
+    corpus_file: str
+
+    model_name: str = "abae_model"
+
+    aspect_size: int = 16
+    max_vocab_size: int = 10000
+    word_embedding_size: int = 128
+    aspect_embedding_size: int = 128
+
+    max_sequence_length: int = 256
+    negative_sample_size: int = 15
+
+    output_path: str = "./output"
+
+
+class AbaeModelManager:
+    def __init__(self, config: AbaeModelConfiguration, override_existing: bool = False):
+        super(AbaeModelManager, self).__init__()
+        self.config = config
+        Path(self.config.output_path).mkdir(parents=True, exist_ok=True)
+        # Load the Embeddings
         self.embedding_model: WordEmbedding | None = None
         self.aspect_model: AspectEmbedding | None = None
+        self.__load_embeddings(override_existing)
 
-        self.corpus_file: str = corpus_file
-        self.embeddings_file: str = embeddings_file
-        self.aspects_file: str = aspects_file
-        self.model_file: str = model_file
-        self.max_vocab_size: int = max_vocab_size
-        self.word_embedding_size: int = word_embedding_size
-        self.aspect_embedding_size: int = aspect_embedding_size
-        self.aspect_size: int | None = None
-
-        self._train_model = None
-        self.trained = False
-        self.generator: ABAEGenerator | None = None
-
-    def prepare_embeddings_step(self, override_existing: bool = False, aspect_size: int = 10):
-        self.aspect_size = aspect_size
-
-        self.embedding_model = WordEmbedding(
-            LoadCorpusUtility(column_name="comments"),
-            max_vocab_size=self.max_vocab_size,
-            embedding_size=self.word_embedding_size,
-            target_model_file=self.embeddings_file,
-            corpus_file=self.corpus_file
+        self.model_generator: ABAEGenerator = ABAEGenerator(
+            self.config.max_sequence_length,
+            self.config.negative_sample_size,
+            self.embedding_model, self.aspect_model
         )
 
-        self.aspect_model = AspectEmbedding(
-            aspect_size=self.aspect_size,
-            embedding_size=self.aspect_embedding_size,
-            target_model_file=self.aspects_file,
-            base_embeddings=self.embedding_model
+        # The training model instance.
+        self._t_model = None
+        self._ev_model = None
+
+    def __load_embeddings(self, override_existing: bool):
+        self.embedding_model = WordEmbedding(
+            LoadCorpusUtility(column_name="comments"),
+            max_vocab_size=self.config.max_vocab_size,
+            embedding_size=self.config.word_embedding_size,
+            target_model_file=f"{self.config.output_path}/{self.config.model_name}.embeddings.model",
+            corpus_file=self.config.corpus_file
         )
 
         self.embedding_model.load_model(override=override_existing)
+
+        self.aspect_model = AspectEmbedding(
+            aspect_size=self.config.aspect_size,
+            embedding_size=self.config.aspect_embedding_size,
+            target_model_file=f"{self.config.output_path}/{self.config.model_name}.aspect-embeddings.model",
+            base_embeddings=self.embedding_model
+        )
+
         self.aspect_model.load_model(override=override_existing)
 
-    def train_model(self, dataloader: DataLoader, max_sequence_length: int = 256, negative_sample_size: int = 15,
-                    epochs: int = 10, optimizer: str = 'SGD', persist_model: bool = True):
-        if self.aspect_model is None or self.embedding_model is None:
-            raise ValueError("You need to prepare the embeddings before training the model.")
+    def prepare_evaluation_model(self):
+        model_file_path = f"{self.config.output_path}/{self.config.model_name}.keras"
+        self._ev_model = self.model_generator.make_model(model_file_path)
+        return self._ev_model
 
-        self.generator = ABAEGenerator(max_sequence_length, negative_sample_size, self.embedding_model,
-                                       self.aspect_model)
-        self._train_model = self.generator.make_training_model(existing_model_path=self.model_file)
+    def prepare_training_model(self, consider_stored: bool = False, optimizer: str = 'SGD'):
+        considered_path = f"{self.config.output_path}/{self.config.model_name}.keras" if consider_stored else None
+        self._t_model = self.model_generator.make_training_model(considered_path)
+        self._t_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
+        return self._t_model
 
-        # Compute the model with the max margin loss function and custom choice Optimizer
-        self._train_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
-        history = self._train_model.fit(x=dataloader, batch_size=64, epochs=epochs)
-        self.trained = True
+    def persist_model(self):
+        if self._t_model is not None:
+            self._t_model.save(f"{self.config.output_path}/{self.config.model_name}.keras")
 
-        if persist_model:
-            self._train_model.save(self.model_file)
-
-        return history
-
-    def get_trained_model(self):
-        return self.generator.make_model(self.model_file)
+    def prepare_model(self, train: bool = False):
+        return self.prepare_training_model() if train else self.prepare_evaluation_model()

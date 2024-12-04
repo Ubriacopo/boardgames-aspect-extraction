@@ -80,3 +80,6 @@ class ABAEGenerator(ModelGenerator):
             return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
 
         return super().make_model(None)
+
+
+# TODO LDAModelGenerator
