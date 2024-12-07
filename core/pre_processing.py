@@ -164,6 +164,11 @@ class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
 
+class LemmatizeTextWithoutNumbersRule(LemmatizeTextWithoutGameNamesRule):
+    def is_invalid_token(self, t: Token) -> bool:
+        return t.is_punct or t.is_currency or t.like_email or t.like_url or t.is_stop or t.is_space or t.like_num
+
+
 class PreProcessingService:
     """
     It can be used as LoadDataUtility, but it won't be persisted. I should think well how to restructure this.
@@ -242,6 +247,28 @@ class PreProcessingService:
                 KickstarterRemovalRule(),
                 FilterLanguageRule(),
                 LemmatizeTextWithoutGameNamesRule(game_names),
+                ShortTextFilterRule(),
+                ListToTextRegenerationRule()
+            ],
+            target_path,
+            "kickstarter_filter_pipeline_without_game_names",
+            extensive_logging
+        )
+
+    @staticmethod
+    def kickstarter_filter_pipeline_without_game_names_and_numbers(
+            game_names: list[str], target_path: str, extensive_logging: bool = False
+    ):
+        return PreProcessingService(
+            [
+                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
+                # Keep tag content rule (in case the tag has an inner description)
+                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                KickstarterRemovalRule(),
+                FilterLanguageRule(),
+                LemmatizeTextWithoutNumbersRule(game_names),
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
             ],
