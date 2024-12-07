@@ -135,15 +135,15 @@ class LemmatizeTextRule(ProcessingRule):
 # todo too many games have common names that are hard to distinguish between terms and boardgames
 # either I match on POS or no can do
 class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
-    def __init__(self, game_names: list[str], nlp: spacy.language.Language | None = None):
+    def __init__(self, game_names: list, nlp: spacy.language.Language | None = None):
         super().__init__(nlp)
-        lower_case_game_names = [name.lower() for name in game_names]
+
         # Now, I know what you are thinking. This is not the best way to do this.
         # Indeed, we could have used a custom pipeline component to do this BUT considering the fact that I expect
         # few games to be referenced in other texts, I think this is a good trade-off.
-        self.matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
+        self.matcher = PhraseMatcher(self.nlp.vocab)
         print(f"Generating game names tokenized representationL: ({len(game_names)})")
-        self.matcher.add("GAME_NAME", [self.nlp(n) for n in lower_case_game_names])
+        self.matcher.add("GAME_NAME", [self.nlp(n) for n in game_names])
         print("Done generating... cb ready for use!")
 
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
@@ -185,6 +185,7 @@ class PreProcessingService:
                 ListToTextRegenerationRule()
             ],
             target_path,
+            "default_pipeline",
             extensive_logging
         )
 
@@ -203,6 +204,7 @@ class PreProcessingService:
                 ListToTextRegenerationRule()
             ],
             target_path,
+            "game_name_less_pipeline",
             extensive_logging
         )
 
@@ -222,6 +224,7 @@ class PreProcessingService:
                 ListToTextRegenerationRule()
             ],
             target_path,
+            "kickstarter_filter_pipeline",
             extensive_logging
         )
 
@@ -243,15 +246,18 @@ class PreProcessingService:
                 ListToTextRegenerationRule()
             ],
             target_path,
+            "kickstarter_filter_pipeline_without_game_names",
             extensive_logging
         )
 
-    def __init__(self, pipeline: list[ProcessingRule], target_path: str, extensive_logging: bool = False):
+    def __init__(self, pipeline: list[ProcessingRule], target_path: str, name: str, extensive_logging: bool = False):
         # Kickstarter is often reference as many people pledge their games from there.
         # Is this useless information? Should I ignore those reviews entirely?
         # self.nlp.Defaults.stop_words.add("kickstarter")
         self.pipeline = pipeline
         self.extensive_logging = extensive_logging
+
+        self.name = name
 
         self.target_path = target_path
         Path(self.target_path).mkdir(parents=True, exist_ok=True)
@@ -271,14 +277,13 @@ class PreProcessingService:
             logging.info(f"We had a problem processing the text {entry}")
             return None
 
-    def pre_process_corpus(self, resource_file_path: str, name: str, override: bool = False):
+    def pre_process_corpus(self, resource_file_path: str, name: str, override: bool = False) -> str:
         if os.path.exists(f"{self.target_path}/{name}.csv") and not override:
             logging.info("Procedure aborted as we are not allowed to override and the file already exists")
-            return  # Abort the process.
+            return f"{self.target_path}/{name}.processed.csv"  # Abort the process.
 
         if not os.path.exists(resource_file_path):
-            logging.info("Procedure aborted as the source file is missing")
-            return  # Abort the process.
+            raise FileNotFoundError("The source file is missing, so we cannot process the corpus.")
 
         df = pd.read_csv(resource_file_path)
 
@@ -286,33 +291,5 @@ class PreProcessingService:
         df["comments"] = df["comments"].swifter.apply(self.pre_process)
 
         df = df.dropna()
-        df.to_csv(f"{self.target_path}/{name}.processed.csv", mode="w", header=True, index=False)
-
-
-def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",
-                       target_file_path: str = "./data/corpus.preprocessed.og.csv", overwrite: bool = False):
-    """
-
-    @param resource_file_path:
-    @param target_file_path:
-    @param overwrite:
-    @return:
-    """
-    if os.path.exists(target_file_path) and not overwrite:
-        logging.info("Procedure aborted as we are not allowed to override and the file already exists")
-        return  # Abort the process.
-
-    if not os.path.exists(resource_file_path):
-        logging.info("Procedure aborted as the source file is missing")
-        return  # Abort the process.
-
-    reference_dataframe = pd.read_csv(resource_file_path)
-    ps = PreProcessingService.default_pipeline()
-    save_frame = pd.DataFrame()
-
-    save_frame["game_id"] = reference_dataframe["game_id"]
-    save_frame["original_text"] = reference_dataframe["comments"]
-    save_frame["comments"] = reference_dataframe["comments"].swifter.apply(ps.pre_process)
-
-    save_frame = save_frame.dropna()
-    save_frame.to_csv(target_file_path, mode="w", header=True, index=False)
+        df.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w", header=True, index=False)
+        return f"{self.target_path}/{name}.preprocessed.csv"
