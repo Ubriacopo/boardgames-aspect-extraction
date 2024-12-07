@@ -1,6 +1,9 @@
 from abc import abstractmethod
 from functools import reduce
+from pathlib import Path
 
+from spacy.matcher.matcher import Matcher
+from spacy.matcher.phrasematcher import PhraseMatcher
 from swifter import swifter
 
 import logging
@@ -127,6 +130,40 @@ class LemmatizeTextRule(ProcessingRule):
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
 
+# todo another rule just to replace the GAME_NAME that is current to the game we are processing? This would
+# require to pass a game id too (our interface doesn't allow it for now)
+# todo too many games have common names that are hard to distinguish between terms and boardgames
+# either I match on POS or no can do
+class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
+    def __init__(self, game_names: list[str], nlp: spacy.language.Language | None = None):
+        super().__init__(nlp)
+        lower_case_game_names = [name.lower() for name in game_names]
+        # Now, I know what you are thinking. This is not the best way to do this.
+        # Indeed, we could have used a custom pipeline component to do this BUT considering the fact that I expect
+        # few games to be referenced in other texts, I think this is a good trade-off.
+        self.matcher = PhraseMatcher(self.nlp.vocab, attr="LOWER")
+        print(f"Generating game names tokenized representationL: ({len(game_names)})")
+        self.matcher.add("GAME_NAME", [self.nlp(n) for n in lower_case_game_names])
+        print("Done generating... cb ready for use!")
+
+    def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
+        if entry is None:
+            return None  # We have to stop to avoid exception
+
+        if entry is list:
+            return [self.process(e) for e in entry]
+
+        text_tokens = self.nlp(entry)
+        game_name_matches = self.matcher(text_tokens)
+        spans = [text_tokens[start:end] for match_id, start, end in game_name_matches]
+
+        with text_tokens.retokenize() as retokenizer:
+            for span in spacy.util.filter_spans(spans):
+                retokenizer.merge(span, attrs={"LEMMA": "GAME_NAME"})
+
+        return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
+
+
 class PreProcessingService:
     """
     It can be used as LoadDataUtility, but it won't be persisted. I should think well how to restructure this.
@@ -134,7 +171,7 @@ class PreProcessingService:
     """
 
     @staticmethod
-    def default_pipeline(extensive_logging: bool = False):
+    def default_pipeline(target_path: str, extensive_logging: bool = False):
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
@@ -147,12 +184,30 @@ class PreProcessingService:
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
             ],
-
+            target_path,
             extensive_logging
         )
 
     @staticmethod
-    def kickstarter_filter_pipeline(extensive_logging: bool = False):
+    def game_name_less_pipeline(game_names: list[str], target_path: str, extensive_logging: bool = False):
+        return PreProcessingService(
+            [
+                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
+                # Keep tag content rule (in case the tag has an inner description)
+                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                FilterLanguageRule(),
+                LemmatizeTextWithoutGameNamesRule(game_names),
+                ShortTextFilterRule(),
+                ListToTextRegenerationRule()
+            ],
+            target_path,
+            extensive_logging
+        )
+
+    @staticmethod
+    def kickstarter_filter_pipeline(target_path: str, extensive_logging: bool = False):
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
@@ -166,16 +221,40 @@ class PreProcessingService:
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
             ],
-
+            target_path,
             extensive_logging
         )
 
-    def __init__(self, pipeline: list[ProcessingRule], extensive_logging: bool = False):
+    @staticmethod
+    def kickstarter_filter_pipeline_without_game_names(
+            game_names: list[str], target_path: str, extensive_logging: bool = False
+    ):
+        return PreProcessingService(
+            [
+                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
+                # Keep tag content rule (in case the tag has an inner description)
+                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                KickstarterRemovalRule(),
+                FilterLanguageRule(),
+                LemmatizeTextWithoutGameNamesRule(game_names),
+                ShortTextFilterRule(),
+                ListToTextRegenerationRule()
+            ],
+            target_path,
+            extensive_logging
+        )
+
+    def __init__(self, pipeline: list[ProcessingRule], target_path: str, extensive_logging: bool = False):
         # Kickstarter is often reference as many people pledge their games from there.
         # Is this useless information? Should I ignore those reviews entirely?
         # self.nlp.Defaults.stop_words.add("kickstarter")
         self.pipeline = pipeline
         self.extensive_logging = extensive_logging
+
+        self.target_path = target_path
+        Path(self.target_path).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
     def remove_short_text(entry: list[str] | None) -> list[str] | None:
@@ -192,8 +271,8 @@ class PreProcessingService:
             logging.info(f"We had a problem processing the text {entry}")
             return None
 
-    def pre_process_corpus(self, resource_file_path: str, target_file_path: str, override: bool = False):
-        if os.path.exists(target_file_path) and not override:
+    def pre_process_corpus(self, resource_file_path: str, name: str, override: bool = False):
+        if os.path.exists(f"{self.target_path}/{name}.csv") and not override:
             logging.info("Procedure aborted as we are not allowed to override and the file already exists")
             return  # Abort the process.
 
@@ -207,7 +286,7 @@ class PreProcessingService:
         df["comments"] = df["comments"].swifter.apply(self.pre_process)
 
         df = df.dropna()
-        df.to_csv(target_file_path, mode="w", header=True, index=False)
+        df.to_csv(f"{self.target_path}/{name}.processed.csv", mode="w", header=True, index=False)
 
 
 def pre_process_corpus(resource_file_path: str = "./data/corpus.csv",

@@ -83,21 +83,3 @@ def max_margin_loss(y_true, y_pred):
     @return: The loss value.
     """
     return K.mean(y_pred, axis=-1)
-
-
-def subsample_corpus(corpus_file: str, target_file: str, quantity: int | float, random_state: int):
-    og_data = pd.read_csv(corpus_file)
-    print(f"Read file: {corpus_file}. It has {len(og_data)} rows.")
-    if type(quantity) is float:
-        quantity = int(len(og_data) * quantity)
-
-    reviews_per_game = int(quantity / len(og_data.groupby(["game_id"]).count())) + 1
-    print(f"For each game in the data we want to have {reviews_per_game} reviews.")
-    print("Subsample processes starting...")
-    (
-        og_data.groupby("game_id", group_keys=False)[og_data.columns]
-        .apply(lambda x: x.sample(min(len(x), reviews_per_game), random_state=random_state))
-        .to_csv(target_file, index=False)
-    )
-
-    print(f"Subsample processes completed. Created a file: {target_file}")

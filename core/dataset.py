@@ -6,8 +6,6 @@ from keras import preprocessing as pre
 from torch.utils.data import Dataset
 import swifter
 
-from core.embeddings import WordEmbedding
-
 
 class PositiveNegativeCommentGeneratorDataset(Dataset):
     def generate_numeric_representation(self, entry):
@@ -108,9 +106,6 @@ class EmbeddingsDataset(Dataset):
 
     def __getitem__(self, index):
         return np.array(self.dataset.at[index])
-        # vectors = [self.embeddings_model.wv[word] for word in sentence if word in self.embeddings_model.wv]
-        # vectors = np.mean(vectors, axis=0) if len(vectors) > 0 else np.zeros(self.embeddings_model.vector_size)
-        # return self.embeddings_model()
 
     def __len__(self):
         return len(self.dataset) - 1
