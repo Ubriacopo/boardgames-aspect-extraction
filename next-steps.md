@@ -2,21 +2,6 @@ What should I do next?
 
 # Plan: Next steps...
 
-### 1 - Make various datasets
-
-- 64 K /+kickstarter-less /+number-less
-- 128 K /+kickstarter-less /+number-less
-- 256 K /+kickstarter-less /+number-less
-
-- 128 K variant with long reviews
-
-Also see if you can pre-process the data even better. <br>
-> This should be our first main priority.
-
--> Potrei anche fare qualche tipo di analisi e vedere i giochie  la loro weight
-
-#todo: trova modi per fare preprocessing migliore 
-
 ### 2 - Begin writing the report
 
 We might not be done but that doesn't mean we can start working on the report. <br>
@@ -42,7 +27,9 @@ We might not be done but that doesn't mean we can start working on the report. <
 Sulla base delle metriche che usiamo (distanza degli aspetti dalle parole, coerenza etc..) alleniamo
 il modello K volte sul DS per vedere per quali parametri funziona meglio. Dovrei fare un proxy ds? Non credo non essendo
 supervised.
-### HP (Provo qualche combinazione non esagerata, non cerchiamo perfezioni)
+
+####  HP (Provo qualche combinazione non esagerata, non cerchiamo perfezioni)
+
 - max_seq_length (128, 256, 512, FULL)
 - embedding_size () -> Cerca modo per sceglierle #todo
 - aspect_emb_size -> Come per emb_size cerca
@@ -50,6 +37,7 @@ supervised.
 - SGD / adam params ? (nah)
 
 Fare ricerca con kerastuner? #todo vedere se si puo
+
 - (128, 128, 128, 32)
 - (256, 128, 128, 32)
 - (512, 128, 128, 32)
@@ -57,12 +45,12 @@ Fare ricerca con kerastuner? #todo vedere se si puo
 - (256, 200, 200, 32)
 
 ### 4 - Abae e Abae-
+
 Togli layer di attention e vediamo se cambia qualcosa
 
 ### 5 - LDA per confronto con il modello scelto
 
-
-### 6 - k-Means come metodo di base per confrontare tutto 
+### 6 - k-Means come metodo di base per confrontare tutto
 
 ### 5 - Delete and refactor
 
