@@ -3,7 +3,7 @@ from abc import abstractmethod
 from functools import reduce
 from pathlib import Path
 
-from pandas import Series
+from pandas import Series, DataFrame
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
 from swifter import swifter
@@ -17,6 +17,8 @@ from spacy.tokens.token import Token
 import pandas as pd
 import spacy
 from fast_langdetect import detect
+
+from core.dataset_sampler import DatasetSampler
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
@@ -171,6 +173,8 @@ class LemmatizeTextWithoutNumbersRule(LemmatizeTextWithoutGameNamesRule):
         return t.is_punct or t.is_currency or t.like_email or t.like_url or t.is_stop or t.is_space or t.like_num
 
 
+# todo use sampler inside.
+# todo passa quanti record vuoi per ds.
 class PreProcessingService:
     """
     It can be used as LoadDataUtility, but it won't be persisted. I should think well how to restructure this.
@@ -209,7 +213,6 @@ class PreProcessingService:
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-
                 CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
 
@@ -223,95 +226,15 @@ class PreProcessingService:
             extensive_logging
         )
 
-    @staticmethod
-    def game_name_less_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
-        return PreProcessingService(
-            [
-                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
-                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
-                # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                FilterLanguageRule(),
-                LemmatizeTextWithoutGameNamesRule(game_names),
-                ShortTextFilterRule(),
-                ListToTextRegenerationRule()
-            ],
-            target_path,
-            "game_name_less_pipeline",
-            extensive_logging
-        )
-
-    @staticmethod
-    def kickstarter_filter_pipeline(target_path: str, extensive_logging: bool = False):
-        return PreProcessingService(
-            [
-                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
-                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
-                # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                KickstarterRemovalRule(),
-                FilterLanguageRule(),
-                LemmatizeTextRule(),
-                ShortTextFilterRule(),
-                ListToTextRegenerationRule()
-            ],
-            target_path,
-            "kickstarter_filter_pipeline",
-            extensive_logging
-        )
-
-    @staticmethod
-    def kickstarter_filter_pipeline_without_game_names(
-            game_names: list, target_path: str, extensive_logging: bool = False
-    ):
-        return PreProcessingService(
-            [
-                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
-                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
-                # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                KickstarterRemovalRule(),
-                FilterLanguageRule(),
-                LemmatizeTextWithoutGameNamesRule(game_names),
-                ShortTextFilterRule(),
-                ListToTextRegenerationRule()
-            ],
-            target_path,
-            "kickstarter_filter_pipeline_without_game_names",
-            extensive_logging
-        )
-
-    @staticmethod
-    def kickstarter_filter_pipeline_without_game_names_and_numbers(
-            game_names: list, target_path: str, extensive_logging: bool = False
-    ):
-        return PreProcessingService(
-            [
-                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
-                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
-                # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                KickstarterRemovalRule(),
-                FilterLanguageRule(),
-                LemmatizeTextWithoutNumbersRule(game_names),
-                ShortTextFilterRule(),
-                ListToTextRegenerationRule()
-            ],
-            target_path,
-            "kickstarter_filter_pipeline_without_game_names",
-            extensive_logging
-        )
-
-    def __init__(self, pipeline: list[ProcessingRule], target_path: str, name: str, extensive_logging: bool = False):
+    def __init__(self, pipeline: list[ProcessingRule], dataset_sampler: DatasetSampler, target_path: str, name: str,
+                 extensive_logging: bool = False):
         # Kickstarter is often reference as many people pledge their games from there.
         # Is this useless information? Should I ignore those reviews entirely?
         # self.nlp.Defaults.stop_words.add("kickstarter")
         self.pipeline = pipeline
         self.extensive_logging = extensive_logging
+
+        self.dataset_sampler = dataset_sampler
 
         self.name = name
 
@@ -321,6 +244,20 @@ class PreProcessingService:
     @staticmethod
     def remove_short_text(entry: list[str] | None) -> list[str] | None:
         return entry if entry is not None and len(entry) > 3 else None
+
+    def process(self, target_dataset_size: int):
+        sampler = self.dataset_sampler.get_sampler()  # passo o é var di classe todo
+        current_dataset = DataFrame()
+
+        while len(current_dataset) < target_dataset_size:
+            batch = next(sampler)
+
+            batch["original_text"] = batch["comments"]
+            batch["comments"] = batch["comments"].swifter.apply(self.pre_process).dropna()
+            # Add the elements
+            current_dataset = pd.concat([current_dataset, batch], ignore_index=True)
+
+        return current_dataset
 
     def pre_process(self, entry: str) -> str | None:
         try:

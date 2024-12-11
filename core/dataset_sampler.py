@@ -1,49 +1,43 @@
 from abc import abstractmethod
-from pathlib import Path
 
 import pandas as pd
 
 
 class DatasetSampler:
-    def __init__(self, target_size: int | float, output_dir: str, random_state: int = 42):
-        self.target_size: int | float = target_size
-        self.output_dir = output_dir
+    def __init__(self, batch_size: int, corpus_file_path: str, random_state: int = 42):
+        self.batch_size: int = batch_size
 
+        self.full_dataset = pd.read_csv(corpus_file_path)
         self.random_state = random_state
 
+    def generator(self) -> pd.DataFrame:
+        # This is a Python generator.
+        while len(self.full_dataset) > 0:
+            # Return a new batch if you can.
+            rows = self.apply_sample_rule(self.full_dataset)
+            # I have to remove elements to avoid re-sampling them.
+            self.full_dataset.drop(rows.index, inplace=True)
+            # Return the sampled rows.
+            yield rows
+
     @abstractmethod
-    def apply_sample_rule(self, records: int, dataset: pd.DataFrame) -> pd.DataFrame:
+    def apply_sample_rule(self, dataset: pd.DataFrame) -> pd.DataFrame:
         pass
-
-    def make_sample_of_data(self, corpus_file: str, target_file: str):
-        full_dataset = pd.read_csv(corpus_file)
-        quantity = self.target_size
-
-        if type(self.target_size) is float:
-            if self.target_size > 1 or self.target_size < 0:
-                raise ValueError("The target size must be a float between 0 and 1.")
-            quantity = int(len(full_dataset) * self.target_size)
-
-        new_dataset = self.apply_sample_rule(quantity, full_dataset)
-
-        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-        print(f"Dataset with a total of {len(new_dataset)} rows has been generated.")
-        print(f"Storing the dataset under: {self.output_dir}/{target_file}\n")
-        new_dataset.to_csv(f"{self.output_dir}/{target_file}", mode="w", header=True, index=False)
 
 
 class BggDatasetRandomBalancedSampler(DatasetSampler):
     """
     It's random because we sample randomly.
     It's balanced because we try to keep the same amount of reviews per game.
+    For each game at least one review is pulled, if possible, up to sample_size/len(ds) + 1
     """
 
-    def apply_sample_rule(self, records: int, dataset: pd.DataFrame) -> pd.DataFrame:
+    def apply_sample_rule(self, dataset: pd.DataFrame) -> pd.DataFrame:
         grouped_dataset = dataset.groupby(["game_id"], group_keys=False)
-        reviews_per_game = int(records / len(grouped_dataset.count())) + 1
+        reviews_per_game = int(self.batch_size / len(grouped_dataset.count())) + 1
 
         print(f"I have a total of {len(grouped_dataset.count())} games with reviews. "
-              f"We want to be ~{self.target_size} reviews so we take {reviews_per_game} reviews per game.")
+              f"We take {reviews_per_game} reviews per game.")
 
         return grouped_dataset[dataset.columns].apply(
             lambda x: x.sample(min(len(x), reviews_per_game), random_state=self.random_state)
@@ -57,5 +51,9 @@ class BggDatasetLongestSampler(DatasetSampler):
     learn to recognize that exact topi in a review.
     """
 
-    def apply_sample_rule(self, records: int, dataset: pd.DataFrame) -> pd.DataFrame:
-        return dataset.sort_values(by="comments", ascending=False, key=lambda x: x.str.len())[0: records]
+    def __init__(self, batch_size: int, corpus_file_path: str, random_state: int = 42):
+        super().__init__(batch_size, corpus_file_path, random_state)
+        self.full_dataset = self.full_dataset.sort_values(by=["comments"], ascending=False, key=lambda x: x.str.len())
+
+    def apply_sample_rule(self, dataset: pd.DataFrame) -> pd.DataFrame:
+        return dataset[0: self.batch_size]
