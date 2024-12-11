@@ -2,6 +2,23 @@ What should I do next?
 
 # Plan: Next steps...
 
+### 1 -
+
+todo:
+- Vedi se riesci senza sprecare troppo tempo a fare un sampler a modo di generator che viene chiamato
+on demand da preprocessingservice
+- Fai il controllo di quanti commenti contengono nomi dei giochi. 
+  - Se sono tanti ha senso pre-processare e sostituisco con tag
+- KickstarterRemovalRule prima di sampling
+
+> pip install date-spacy
+ 
+You can also normalize numbers (e.g., replacing them with a placeholder like <NUM>) if their exact value is irrelevant
+but their presence matters.
+https://spacy.io/universe/project/date-spacy
+
+> Sostituire dates come 10/11/2023 in token \<DATE>
+
 ### 2 - Begin writing the report
 
 We might not be done but that doesn't mean we can start working on the report. <br>
@@ -28,7 +45,7 @@ Sulla base delle metriche che usiamo (distanza degli aspetti dalle parole, coere
 il modello K volte sul DS per vedere per quali parametri funziona meglio. Dovrei fare un proxy ds? Non credo non essendo
 supervised.
 
-####  HP (Provo qualche combinazione non esagerata, non cerchiamo perfezioni)
+#### HP (Provo qualche combinazione non esagerata, non cerchiamo perfezioni)
 
 - max_seq_length (128, 256, 512, FULL)
 - embedding_size () -> Cerca modo per sceglierle #todo
@@ -49,6 +66,7 @@ Fare ricerca con kerastuner? #todo vedere se si puo
 Togli layer di attention e vediamo se cambia qualcosa
 
 ### 5 - LDA per confronto con il modello scelto
+https://www.kaggle.com/code/pranjalsoni17/topic-modelling-using-lda
 
 ### 6 - k-Means come metodo di base per confrontare tutto
 

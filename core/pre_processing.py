@@ -29,8 +29,10 @@ class ProcessingRule:
 
 class KickstarterRemovalRule(ProcessingRule):
     def __init__(self, min_sentence_word_length: int = 15):
+
         self.word = "kickstarter"
         self.lemma_word = "kickstart"
+
         self.min_sentence_word_length = min_sentence_word_length
 
     def process(self, e: str | None | list, extensive_logging: bool = False) -> str | None | list:
@@ -131,6 +133,7 @@ class LemmatizeTextRule(ProcessingRule):
         text_tokens = self.nlp(entry.lower())
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
+
 # todo add custom stop words
 class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
     def __init__(self, game_names: list, nlp: spacy.language.Language | None = None):
@@ -181,6 +184,7 @@ class PreProcessingService:
 
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                # todo unisci i due casi. Lo tengo?
                 CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
 
@@ -205,6 +209,10 @@ class PreProcessingService:
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+
+                CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
+                CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
+
                 FilterLanguageRule(),
                 LemmatizeTextRule(),
                 ShortTextFilterRule(),
