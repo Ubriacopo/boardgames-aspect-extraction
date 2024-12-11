@@ -1,7 +1,9 @@
+import multiprocessing
 from abc import abstractmethod
 from functools import reduce
 from pathlib import Path
 
+from pandas import Series
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
 from swifter import swifter
@@ -129,11 +131,7 @@ class LemmatizeTextRule(ProcessingRule):
         text_tokens = self.nlp(entry.lower())
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
-
-# todo another rule just to replace the GAME_NAME that is current to the game we are processing? This would
-# require to pass a game id too (our interface doesn't allow it for now)
-# todo too many games have common names that are hard to distinguish between terms and boardgames
-# either I match on POS or no can do
+# todo add custom stop words
 class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
     def __init__(self, game_names: list, nlp: spacy.language.Language | None = None):
         super().__init__(nlp)
@@ -142,8 +140,9 @@ class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
         # Indeed, we could have used a custom pipeline component to do this BUT considering the fact that I expect
         # few games to be referenced in other texts, I think this is a good trade-off.
         self.matcher = PhraseMatcher(self.nlp.vocab)
+
         print(f"Generating game names tokenized representationL: ({len(game_names)})")
-        self.matcher.add("GAME_NAME", [self.nlp(n) for n in game_names])
+        self.matcher.add("GAME_NAME", game_names)
         print("Done generating... cb ready for use!")
 
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
@@ -176,6 +175,28 @@ class PreProcessingService:
     """
 
     @staticmethod
+    def full_pipeline(target_path: str, game_names: list, extensive_logging: bool = False):
+        return PreProcessingService(
+            [
+
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
+                CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
+
+                KickstarterRemovalRule(),
+                FilterLanguageRule(),
+                LemmatizeTextWithoutGameNamesRule(game_names),
+
+                ShortTextFilterRule(),
+                ListToTextRegenerationRule()
+            ],
+            target_path,
+            "full_pipeline",
+            extensive_logging
+        )
+
+    @staticmethod
     def default_pipeline(target_path: str, extensive_logging: bool = False):
         return PreProcessingService(
             [
@@ -183,7 +204,7 @@ class PreProcessingService:
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 FilterLanguageRule(),
                 LemmatizeTextRule(),
                 ShortTextFilterRule(),
@@ -195,14 +216,14 @@ class PreProcessingService:
         )
 
     @staticmethod
-    def game_name_less_pipeline(game_names: list[str], target_path: str, extensive_logging: bool = False):
+    def game_name_less_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 FilterLanguageRule(),
                 LemmatizeTextWithoutGameNamesRule(game_names),
                 ShortTextFilterRule(),
@@ -221,7 +242,7 @@ class PreProcessingService:
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 KickstarterRemovalRule(),
                 FilterLanguageRule(),
                 LemmatizeTextRule(),
@@ -235,7 +256,7 @@ class PreProcessingService:
 
     @staticmethod
     def kickstarter_filter_pipeline_without_game_names(
-            game_names: list[str], target_path: str, extensive_logging: bool = False
+            game_names: list, target_path: str, extensive_logging: bool = False
     ):
         return PreProcessingService(
             [
@@ -243,7 +264,7 @@ class PreProcessingService:
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 KickstarterRemovalRule(),
                 FilterLanguageRule(),
                 LemmatizeTextWithoutGameNamesRule(game_names),
@@ -257,7 +278,7 @@ class PreProcessingService:
 
     @staticmethod
     def kickstarter_filter_pipeline_without_game_names_and_numbers(
-            game_names: list[str], target_path: str, extensive_logging: bool = False
+            game_names: list, target_path: str, extensive_logging: bool = False
     ):
         return PreProcessingService(
             [
@@ -265,7 +286,7 @@ class PreProcessingService:
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
+                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 KickstarterRemovalRule(),
                 FilterLanguageRule(),
                 LemmatizeTextWithoutNumbersRule(game_names),
@@ -306,10 +327,11 @@ class PreProcessingService:
 
     def pre_process_corpus(self, resource_file_path: str, name: str, override: bool = False) -> str:
         if os.path.exists(f"{self.target_path}/{name}.csv") and not override:
-            logging.info("Procedure aborted as we are not allowed to override and the file already exists")
+            print("Procedure aborted as we are not allowed to override and the file already exists")
             return f"{self.target_path}/{name}.processed.csv"  # Abort the process.
 
         if not os.path.exists(resource_file_path):
+            print("File not found error!")
             raise FileNotFoundError("The source file is missing, so we cannot process the corpus.")
 
         df = pd.read_csv(resource_file_path)

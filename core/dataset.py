@@ -64,7 +64,7 @@ class PositiveNegativeCommentGeneratorDataset(Dataset):
         # Stack to get rid of lists and create nice numpy arrays to be elaborated/\
         sample = np.array(self.dataset.at[index])
         negative_samples = np.stack(self.dataset.sample(n=self.negative_size).to_numpy())
-        return [sample, negative_samples], [0, 0]
+        return [sample, negative_samples], 0
 
     def __len__(self):
         return len(self.dataset) - 1
