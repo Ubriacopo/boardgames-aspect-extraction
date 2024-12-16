@@ -2,23 +2,6 @@ What should I do next?
 
 # Plan: Next steps...
 
-### 1 -
-
-todo:
-- Vedi se riesci senza sprecare troppo tempo a fare un sampler a modo di generator che viene chiamato
-on demand da preprocessingservice
-- Fai il controllo di quanti commenti contengono nomi dei giochi. 
-  - Se sono tanti ha senso pre-processare e sostituisco con tag
-- KickstarterRemovalRule prima di sampling
-
-> pip install date-spacy
- 
-You can also normalize numbers (e.g., replacing them with a placeholder like <NUM>) if their exact value is irrelevant
-but their presence matters.
-https://spacy.io/universe/project/date-spacy
-
-> Sostituire dates come 10/11/2023 in token \<DATE>
-
 ### 2 - Begin writing the report
 
 We might not be done but that doesn't mean we can start working on the report. <br>

@@ -2,10 +2,12 @@ import multiprocessing
 from abc import abstractmethod
 from functools import reduce
 from pathlib import Path
-
+import itertools
+from date_spacy import find_dates
 from pandas import Series, DataFrame
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
+from spacy.tokens.doc import Doc
 from swifter import swifter
 
 import logging
@@ -18,41 +20,28 @@ import pandas as pd
 import spacy
 from fast_langdetect import detect
 
-from core.dataset_sampler import DatasetSampler
+from core.dataset_sampler import ConsumingDatasetSampler
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 
 
 class ProcessingRule:
+    """
+    "Interface" on which we base processing steps.
+    """
+
     @abstractmethod
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         pass
 
 
-class KickstarterRemovalRule(ProcessingRule):
-    def __init__(self, min_sentence_word_length: int = 15):
-
-        self.word = "kickstarter"
-        self.lemma_word = "kickstart"
-
-        self.min_sentence_word_length = min_sentence_word_length
-
-    def process(self, e: str | None | list, extensive_logging: bool = False) -> str | None | list:
-        if e is None:
-            return None  # We have to stop to avoid exception
-
-        if type(e) is list and any(self.lemma_word in s.lower() for s in e) and len(e) < self.min_sentence_word_length:
-            return None
-
-        # Splitting text like this might be dumb but fast enough for us.
-        if type(e) is str and len(e.split(' ')) < self.min_sentence_word_length and self.word in e.lower():
-            return None
-
-        return e
-
-
 class CleanTextRule(ProcessingRule):
     def __init__(self, regex: str, replacement: str = ""):
+        """
+        Applies regex as processing step.
+        @param regex: The matching pattern to apply
+        @param replacement: What to put instead of the match pattern.
+        """
         self.regex = regex
         self.replacement = replacement
 
@@ -114,6 +103,7 @@ class ListToTextRegenerationRule(ProcessingRule):
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
             return None  # We have to stop to avoid exception
+        # We expect the input to be a list but just in case we handle str case as well.
         return type(entry) is list and " ".join([f"{e.strip()}" for e in entry]) or entry.strip()
 
 
@@ -127,54 +117,82 @@ class LemmatizeTextRule(ProcessingRule):
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
             return None  # We have to stop to avoid exception
-
+        # todo test at least one of theese calls.
         if entry is list:
-            # todo look at shape of this list. It should be a list of strings.
-            return [self.process(e) for e in entry]
+            return list(itertools.chain(*[self.process(e) for e in entry]))
 
         text_tokens = self.nlp(entry.lower())
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
 
-# todo add custom stop words
-class LemmatizeTextWithoutGameNamesRule(LemmatizeTextRule):
-    def __init__(self, game_names: list, nlp: spacy.language.Language | None = None):
-        super().__init__(nlp)
-
-        # Now, I know what you are thinking. This is not the best way to do this.
-        # Indeed, we could have used a custom pipeline component to do this BUT considering the fact that I expect
-        # few games to be referenced in other texts, I think this is a good trade-off.
-        self.matcher = PhraseMatcher(self.nlp.vocab)
-
-        print(f"Generating game names tokenized representationL: ({len(game_names)})")
-        self.matcher.add("GAME_NAME", game_names)
-        print("Done generating... cb ready for use!")
+class DateFilterTextRule(ProcessingRule):
+    def __init__(self):
+        self.nlp = spacy.blank("en")
+        # We require spacy to recognize if the dates.
+        # I had to separate it from the lemmatizer as using this pipe would break the trained md (Dunno why).
+        self.nlp.add_pipe("find_dates")
 
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
             return None  # We have to stop to avoid exception
 
         if entry is list:
-            return [self.process(e) for e in entry]
+            return list(itertools.chain(*[self.process(e) for e in entry]))
 
-        text_tokens = self.nlp(entry)
-        game_name_matches = self.matcher(text_tokens)
-        spans = [text_tokens[start:end] for match_id, start, end in game_name_matches]
+        for e in self.nlp(entry).ents:
+            entry = entry.replace(e.text, "<DATE>")
 
-        with text_tokens.retokenize() as retokenizer:
+        return entry
+
+
+class MatcherReplacementRuleOnLemma:
+    def __init__(self, matcher: Matcher | PhraseMatcher, replacement_token: str):
+        self.matcher: Matcher | PhraseMatcher = matcher
+        self.replacement_token: str = replacement_token
+
+    def __call__(self, tokens) -> Doc:
+        matches = self.matcher(tokens)
+        spans = [tokens[start:end] for match_id, start, end in matches]
+
+        with tokens.retokenize() as retokenizer:
             for span in spacy.util.filter_spans(spans):
-                retokenizer.merge(span, attrs={"LEMMA": "GAME_NAME"})
+                retokenizer.merge(span, attrs={"LEMMA": self.replacement_token})
 
-        return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
-
-
-class LemmatizeTextWithoutNumbersRule(LemmatizeTextWithoutGameNamesRule):
-    def is_invalid_token(self, t: Token) -> bool:
-        return t.is_punct or t.is_currency or t.like_email or t.like_url or t.is_stop or t.is_space or t.like_num
+        return tokens
 
 
-# todo use sampler inside.
-# todo passa quanti record vuoi per ds.
+class GameNamesMatcherReplacementRule(MatcherReplacementRuleOnLemma):
+    def __init__(self, vocab, game_names: list):
+        matcher = PhraseMatcher(vocab)
+        matcher.add("<GAME_NAME>", game_names)
+        super().__init__(matcher, "<GAME_NAME>")
+
+
+class DateMatcherReplacementRule(MatcherReplacementRuleOnLemma):
+    def __init__(self, vocab):
+        matcher = Matcher(vocab)
+        matcher.add("<DATE>", [[{"ENT_TYPE": "DATE"}, {"OP": "?"}]])
+        super().__init__(matcher, "<DATE>")
+
+
+class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
+    def __init__(self, nlp: spacy.language.Language | None = None, rules: list[MatcherReplacementRuleOnLemma] = None):
+        super().__init__(nlp)
+        self.rules = [] if rules is None else rules
+
+    def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
+        if entry is None:
+            return None  # We have to stop to avoid exception
+
+        if entry is list:
+            return list(itertools.chain(*[self.process(e) for e in entry]))
+
+        tokens = self.nlp(entry)
+        for rule in self.rules:
+            tokens = rule(tokens)
+        return [token.lemma_ for token in tokens if not self.is_invalid_token(token)]
+
+
 class PreProcessingService:
     """
     It can be used as LoadDataUtility, but it won't be persisted. I should think well how to restructure this.
@@ -182,20 +200,18 @@ class PreProcessingService:
     """
 
     @staticmethod
-    def full_pipeline(target_path: str, game_names: list, extensive_logging: bool = False):
+    def full_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
+        nlp = spacy.load('en_core_web_md')
         return PreProcessingService(
             [
-
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                # todo unisci i due casi. Lo tengo?
-                CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
-                CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
-
-                KickstarterRemovalRule(),
+                CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
-                LemmatizeTextWithoutGameNamesRule(game_names),
-
+                LemmatizeTextWithMatcherRules(rules=[
+                    GameNamesMatcherReplacementRule(nlp.vocab, game_names),
+                    DateMatcherReplacementRule(nlp.vocab),
+                ]),
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
             ],
@@ -213,9 +229,7 @@ class PreProcessingService:
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                CleanTextRule("f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
-                CleanTextRule(":F::O::R::E::V::E::R::blank::K::E::E::P::E::R:"),
-
+                CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 LemmatizeTextRule(),
                 ShortTextFilterRule(),
@@ -226,35 +240,36 @@ class PreProcessingService:
             extensive_logging
         )
 
-    def __init__(self, pipeline: list[ProcessingRule], dataset_sampler: DatasetSampler, target_path: str, name: str,
-                 extensive_logging: bool = False):
-        # Kickstarter is often reference as many people pledge their games from there.
-        # Is this useless information? Should I ignore those reviews entirely?
-        # self.nlp.Defaults.stop_words.add("kickstarter")
+    def __init__(self, pipeline: list[ProcessingRule], target_path: str,
+                 name: str, extensive_logging: bool = False):
         self.pipeline = pipeline
         self.extensive_logging = extensive_logging
-
-        self.dataset_sampler = dataset_sampler
 
         self.name = name
 
         self.target_path = target_path
         Path(self.target_path).mkdir(parents=True, exist_ok=True)
 
-    @staticmethod
-    def remove_short_text(entry: list[str] | None) -> list[str] | None:
-        return entry if entry is not None and len(entry) > 3 else None
-
-    def process(self, target_dataset_size: int):
-        sampler = self.dataset_sampler.get_sampler()  # passo o é var di classe todo
+    def pre_process_dataset(self, target_dataset_size: int, dataset_sampler: ConsumingDatasetSampler):
+        sampler = dataset_sampler.generator()
         current_dataset = DataFrame()
 
         while len(current_dataset) < target_dataset_size:
             batch = next(sampler)
 
             batch["original_text"] = batch["comments"]
-            batch["comments"] = batch["comments"].swifter.apply(self.pre_process).dropna()
+
+            if len(current_dataset) > 0:
+                batch = (current_dataset.merge(batch, how='outer', indicator=True)
+                .query("_merge == 'right_only'")[batch.columns])
+
+            if len(batch) == 0:
+                continue  # No elements to work on we pass.
+
+            batch["comments"] = batch["comments"].swifter.apply(self.pre_process)
+            batch = batch.dropna(subset="comments")
             # Add the elements
+
             current_dataset = pd.concat([current_dataset, batch], ignore_index=True)
 
         return current_dataset
@@ -270,20 +285,12 @@ class PreProcessingService:
             logging.info(f"We had a problem processing the text {entry}")
             return None
 
-    def pre_process_corpus(self, resource_file_path: str, name: str, override: bool = False) -> str:
+    def pre_process_corpus(self, target_size: int, dataset_sampler: ConsumingDatasetSampler,
+                           name: str, override: bool = False) -> str:
         if os.path.exists(f"{self.target_path}/{name}.csv") and not override:
             print("Procedure aborted as we are not allowed to override and the file already exists")
             return f"{self.target_path}/{name}.processed.csv"  # Abort the process.
 
-        if not os.path.exists(resource_file_path):
-            print("File not found error!")
-            raise FileNotFoundError("The source file is missing, so we cannot process the corpus.")
-
-        df = pd.read_csv(resource_file_path)
-
-        df["original_text"] = df["comments"]
-        df["comments"] = df["comments"].swifter.apply(self.pre_process)
-
-        df = df.dropna()
-        df.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w", header=True, index=False)
+        ds = self.pre_process_dataset(target_size, dataset_sampler)
+        ds.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w", header=True, index=False)
         return f"{self.target_path}/{name}.preprocessed.csv"

@@ -1,16 +1,20 @@
 from abc import abstractmethod
+from typing import Generator
 
 import pandas as pd
+from pandas import DataFrame
 
 
-class DatasetSampler:
+class ConsumingDatasetSampler:
     def __init__(self, batch_size: int, corpus_file_path: str, random_state: int = 42):
         self.batch_size: int = batch_size
-
-        self.full_dataset = pd.read_csv(corpus_file_path)
         self.random_state = random_state
 
-    def generator(self) -> pd.DataFrame:
+        # Of course the corpus has to exist else this raises an exception
+        self.full_dataset = pd.read_csv(corpus_file_path)
+
+    # Once consumed the sampler has to be thrown to the trash
+    def generator(self) -> Generator[DataFrame, None, None]:
         # This is a Python generator.
         while len(self.full_dataset) > 0:
             # Return a new batch if you can.
@@ -25,7 +29,7 @@ class DatasetSampler:
         pass
 
 
-class BggDatasetRandomBalancedSampler(DatasetSampler):
+class BggDatasetRandomBalancedSampler(ConsumingDatasetSampler):
     """
     It's random because we sample randomly.
     It's balanced because we try to keep the same amount of reviews per game.
@@ -44,7 +48,7 @@ class BggDatasetRandomBalancedSampler(DatasetSampler):
         )
 
 
-class BggDatasetLongestSampler(DatasetSampler):
+class BggDatasetLongestSampler(ConsumingDatasetSampler):
     """
     Compared to the random sampler we cannot assure that we keep track of reviews of any kind of game.
     I expect more complex games to receive longer reviews and therefore my network to better
