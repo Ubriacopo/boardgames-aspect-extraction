@@ -29,17 +29,15 @@ class LoadCorpusAndProcessUtility(LoadDataUtility):
 
 
 class LoadCorpusUtility(LoadDataUtility):
-    def __init__(self, custom_language_model=None, min_word_count=2, column_name: str = "comments"):
+    def __init__(self, min_word_count=2, column_name: str = "comments"):
         """
         This utility considers the corpus as already pre-processed by default. A different language model
         can be passed to apply a more complex pipeline.
         It is specialized on our corpus file and structure.
-
-        @param custom_language_model: An optional custom language model to apply to the corpus.
         @param min_word_count: The minimum word count to consider a word as valid. (Default at least 3)
         """
         # We are basically splitting only as the text was already pre-processed.
-        self.nlp = spacy.blank("en") if custom_language_model is None else custom_language_model
+        # self.nlp = spacy.blank("en") if custom_language_model is None else custom_language_model
         self.min_word_count = min_word_count
 
         # What is the column name that contains the data.
@@ -47,8 +45,7 @@ class LoadCorpusUtility(LoadDataUtility):
 
     def _try_tokenization(self, text: str, word_count: dict):
         try:
-            return self.nlp(text)
-
+            return text.split(' ')
         except Exception as exception:
             logging.error(exception)  # Show the real exception
             logging.warning(f"Given text: '{text}' was not convertable")
@@ -62,7 +59,7 @@ class LoadCorpusUtility(LoadDataUtility):
         for line in lines:
             for token in line:
                 # At first match initialize to 1 (we counted one) then increase for any other match.
-                word_count[token.text] = 1 if token.text not in word_count else word_count[token.text] + 1
+                word_count[token] = 1 if token not in word_count else word_count[token] + 1
 
         # Words that don't satisfy min count are just dropped.
         lines = lines.swifter.apply(
@@ -70,6 +67,17 @@ class LoadCorpusUtility(LoadDataUtility):
         )
 
         return [[str(tokenized) for tokenized in line] for line in lines]
+
+    def make_corpus_dictionary(self, corpus: str):
+        corpus = pd.read_csv(corpus)[self.column_name].swifter.apply(lambda x: x.split(" "))
+        dictionary = dict()
+
+        for line in corpus:
+            for word in line:
+                # We also count occurrences
+                dictionary[word] = 1 + (dictionary.get(word, 0) if dictionary.get(word) is not None else 0)
+
+        return dictionary
 
 
 def max_margin_loss(y_true, y_pred):

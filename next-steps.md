@@ -2,6 +2,11 @@ What should I do next?
 
 # Plan: Next steps...
 
+### 1 - Dividi recensioni con sentence parser e tienile.
+
+- Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
+- Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
+
 ### 2 - Begin writing the report
 
 We might not be done but that doesn't mean we can start working on the report. <br>
@@ -49,6 +54,7 @@ Fare ricerca con kerastuner? #todo vedere se si puo
 Togli layer di attention e vediamo se cambia qualcosa
 
 ### 5 - LDA per confronto con il modello scelto
+
 https://www.kaggle.com/code/pranjalsoni17/topic-modelling-using-lda
 
 ### 6 - k-Means come metodo di base per confrontare tutto

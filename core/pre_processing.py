@@ -3,8 +3,8 @@ from abc import abstractmethod
 from functools import reduce
 from pathlib import Path
 import itertools
-from date_spacy import find_dates
 from pandas import Series, DataFrame
+from spacy.lang.en import English
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
 from spacy.tokens.doc import Doc
@@ -33,6 +33,25 @@ class ProcessingRule:
     @abstractmethod
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         pass
+
+    def branches(self):
+        return False
+
+
+class SplitSentencesRule(ProcessingRule):
+    def __init__(self):
+        self.nlp = English()
+        self.nlp.add_pipe('sentencizer')
+
+    def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
+        if entry is None or type(entry) is not str:
+            return entry
+
+        document = self.nlp(entry)
+        return [sent.text.strip() for sent in document.sents]
+
+    def branches(self):
+        return True
 
 
 class CleanTextRule(ProcessingRule):
@@ -204,15 +223,20 @@ class PreProcessingService:
         nlp = spacy.load('en_core_web_md')
         return PreProcessingService(
             [
+                # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
                 CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
+                # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
+                SplitSentencesRule(),
+                ShortTextFilterRule(min_words_in_sentence=3),
                 LemmatizeTextWithMatcherRules(rules=[
                     GameNamesMatcherReplacementRule(nlp.vocab, game_names),
                     DateMatcherReplacementRule(nlp.vocab),
                 ]),
-                ShortTextFilterRule(),
+                ShortTextFilterRule(min_words_in_sentence=3),
                 ListToTextRegenerationRule()
             ],
             target_path,
@@ -231,6 +255,8 @@ class PreProcessingService:
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
                 CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
+                SplitSentencesRule(),
+                ShortTextFilterRule(min_words_in_sentence=3),
                 LemmatizeTextRule(),
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
@@ -267,16 +293,35 @@ class PreProcessingService:
                 continue  # No elements to work on we pass.
 
             batch["comments"] = batch["comments"].swifter.apply(self.pre_process)
-            batch = batch.dropna(subset="comments")
-            # Add the elements
+            # For now, I only handled 1 level of nested. I should generalize.
+            batch = batch.explode('comments').reset_index(drop=True)
 
+            batch = batch.dropna(subset="comments")
+
+            # Even if they might derive from two different reviews equal sentences are redundant.
+            batch = batch.drop_duplicates(subset=["comments"])
+
+            # Add the elements
             current_dataset = pd.concat([current_dataset, batch], ignore_index=True)
 
         return current_dataset
 
-    def pre_process(self, entry: str) -> str | None:
+    def pre_process(self, entry: str, pipeline_start_index: int = 0) -> str | None | list:
         try:
-            return reduce(lambda t, rule: rule.process(t, self.extensive_logging), self.pipeline, entry)
+            tmp = entry
+
+            for i in range(pipeline_start_index, len(self.pipeline)):
+
+                current_step_rule = self.pipeline[i]
+                tmp = current_step_rule.process(tmp)
+
+                # If the process branches we have to return a list of processed branches.
+                if current_step_rule.branches() and type(tmp) == list:
+                    return [self.pre_process(s, i + 1) for s in tmp]
+
+            return tmp
+
+            # return reduce(lambda t, rule: rule.process(t, self.extensive_logging), self.pipeline, entry)
 
         except Exception as e:
 
