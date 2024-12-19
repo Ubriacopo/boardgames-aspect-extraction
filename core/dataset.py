@@ -28,8 +28,9 @@ class BaseBoardgameDataset(Dataset):
         self.dataset = dataset
 
         print("Generating numeric representation for each word of ds.")
+        self.original_review_ds = self.dataset["original_text"]
+        self.text_ds = self.dataset["comments"]
 
-        self.text_ds = self.dataset["original_text"]
         self.id_ds = self.dataset["game_id"]
 
         self.dataset = self.dataset["comments"].swifter.apply(
@@ -52,8 +53,11 @@ class BaseBoardgameDataset(Dataset):
         print(f"Padding sequences to length ({padding_size}).")
         self.dataset = pd.Series(pre.sequence.pad_sequences(self.dataset, maxlen=padding_size).tolist())
 
-    def get_review_of_sentence(self, index: int):
+    def get_text_sentence(self, index: int):
         return self.text_ds.at[index]  # Returns the review this sentence belongs to.
+
+    def get_review_by_index(self, index: int):
+        return self.original_review_ds.at[index]
 
     def get_associated_game_id(self, index: int):
         return self.id_ds.at[index]
