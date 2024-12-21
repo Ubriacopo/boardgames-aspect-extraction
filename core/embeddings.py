@@ -7,7 +7,6 @@ import keras
 from sklearn.cluster import KMeans
 from keras import ops as K
 import core.layer
-from core.utils import LoadDataUtility
 
 
 class Embedding(ABC):
@@ -16,12 +15,13 @@ class Embedding(ABC):
     representation to capture the most  relevant information in regard to the aspect (topic) of the sentence
     """
 
-    def __init__(self, embedding_size: int, target_model_file: str):
-        self.target_model_file: str = target_model_file  # File in which core is stored
+    def __init__(self, embedding_size: int, target_path: str, name: str):
+        self.target_path: str = target_path  # File in which core is stored
+        self.name = name
         self.embedding_size: int = embedding_size
 
     @abstractmethod
-    def get_weights(self):
+    def weights(self):
         pass
 
     @abstractmethod
@@ -29,7 +29,17 @@ class Embedding(ABC):
         pass
 
     @abstractmethod
-    def load_model(self, override: bool = False):
+    def load(self):
+        pass
+
+    @abstractmethod
+    def generate(self, fit_data, persist: bool = True, load_existing: bool = False):
+        """
+        @param fit_data:
+        @param persist
+        @param load_existing:If true and there is a generated target element already -> It gets loaded
+        @return:
+        """
         pass
 
     def get_embedding_size(self):
@@ -40,7 +50,7 @@ class Embedding(ABC):
         return self.embedding_size
 
     @abstractmethod
-    def get_vocab(self):
+    def vocabulary(self):
         """
         Returns the vocabulary. If not generated we expect an empty list.
         @return: the vocabulary if it was generated
@@ -49,103 +59,111 @@ class Embedding(ABC):
 
 
 class WordEmbedding(Embedding):
-
-    def __init__(self, corpus_loader_utility: LoadDataUtility, embedding_size: int,
-                 target_model_file: str, corpus_file: str, max_vocab_size: int = None, min_word_count: int = 3):
+    def __init__(self, emb_size: int, target_path: str, name: str, max_vocab_size: int = None, min_word_count: int = 3):
         """
         As a good reference look at: https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
-        @param corpus_loader_utility:
         @param max_vocab_size:
-        @param embedding_size:
-        @param target_model_file:
-        @param corpus_file:
+        @param emb_size:
         @param min_word_count:
         """
-        super(WordEmbedding, self).__init__(embedding_size, target_model_file)
-        self.corpus_loader_utility = corpus_loader_utility
-
+        super(WordEmbedding, self).__init__(emb_size, target_path, name)
         self.model: gensim.models.Word2Vec | None = None  # None loaded by default.
-
         self.max_vocab_size: int = max_vocab_size
-        self.corpus_file: str = corpus_file
         self.min_word_count: int = min_word_count
 
-    def get_weights(self):
+    def load(self):
+        file_path = f"{self.target_path}/{self.name}.embeddings.keras"
+        if not Path(file_path).exists():
+            raise f"To read a model the model has to exist. File: {file_path} does not exist."
+        self.model = gensim.models.Word2Vec.load(str(Path(file_path)))
+
+    def generate(self, corpus: list, persist: bool = True, sg: bool = True, load_existing: bool = False):
+        try:
+            # todo sistema f
+            if load_existing:
+                self.load()
+                return
+
+        except Exception as e:
+            print(e)
+
+        self.model = gensim.models.Word2Vec(
+            sentences=corpus, vector_size=self.embedding_size, workers=8,
+            min_count=self.min_word_count, max_vocab_size=self.max_vocab_size, sg=sg
+        )
+
+        # Persist
+        if persist:
+            self.model.save(f"{self.target_path}/{self.name}.embeddings.keras")
+
+    def weights(self):
         if self.model is None:
-            self.load_model(override=False)
-        # We do the train and update our reference to core.
+            self.load()  # Try to load the model if it exists!
+
         return self.model.wv.vectors
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
+        if self.model is None:
+            self.load()  # Try to load the model if it exists!
+
         actual_vocab_size = len(self.model.wv.key_to_index)
+
         return keras.layers.Embedding(
             input_dim=actual_vocab_size, output_dim=self.embedding_size,
-            weights=self.get_weights(), trainable=False, name=layer_name, mask_zero=True
+            weights=self.weights(), trainable=False, name=layer_name, mask_zero=True
         )
 
-    def load_model(self, override: bool = False):
-        # Load the already created core if we don't want to override it
-        if not override and Path(self.target_model_file).exists():
-            self.model = gensim.models.Word2Vec.load(str(Path(self.target_model_file)))
-        else:  # Generate a new core if none exists
-            # All that is required is that the input yields one sentence (list of utf8 words) after another
-            # https://radimrehurek.com/gensim/auto_examples/tutorials/run_word2vec.html
-            self.model = gensim.models.Word2Vec(
-                sentences=self.corpus_loader_utility.load_data(self.corpus_file), vector_size=self.embedding_size,
-                min_count=self.min_word_count, workers=8, max_vocab_size=self.max_vocab_size
-            )
-
-            self.model.save(self.target_model_file)
-
-    def get_vocab(self) -> object:
+    def vocabulary(self) -> object:
         """
         If the core cannot be built we throw an error.
         @return: object with keys-value pairs for text-int encoding
         """
         if self.model is None:
-            # I have to load the core
-            self.load_model(override=False)
+            self.load()  # Try to load the model if it exists!
 
         return self.model.wv.key_to_index
 
 
 class AspectEmbedding(Embedding):
-    core: KMeans
-
-    def __init__(self, aspect_size: int, embedding_size: int, target_model_file: str, base_embeddings: Embedding):
-        super(AspectEmbedding, self).__init__(embedding_size, target_model_file)
-
+    def __init__(self, aspect_size: int, embedding_size: int, target_path: str, name: str):
+        super(AspectEmbedding, self).__init__(embedding_size, target_path, name)
         self.model: KMeans | None = None
-
         self.aspect_size = aspect_size
-        self.base_embeddings = base_embeddings
+
+    def load(self):
+        file_path = f"{self.target_path}/{self.name}.aspect-embeddings.model"
+        if not Path(file_path).exists():
+            raise f"To read a model the model has to exist. File: {file_path} does not exist."
+        self.model = pickle.load(open(file_path, "rb"))
+
+    def generate(self, embedding_weights, persist: bool = True, load_existing: bool = False):
+        try:
+            # todo sistema f
+            if load_existing:
+                self.load()
+                return
+
+        except Exception as e:
+            print(e)
+
+        self.model = KMeans(n_clusters=self.aspect_size)
+        self.model.fit(embedding_weights)
+
+        if persist:
+            pickle.dump(self.model, open(f"{self.target_path}/{self.name}.aspect-embeddings.model", "wb"))
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.get_weights())
+        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.weights())
 
-    def load_model(self, override: bool = False):
-        if not override and Path(self.target_model_file).exists():
-            self.model = pickle.load(open(self.target_model_file, "rb"))
-        else:  # Generate the core as it does not exist
-            """
-            We also initialize the aspect embedding matrix T with the centroids of clusters resulting from running k-means
-            on word embeddings. Other parameters are initialized randomly. ~ Ruidan
-            So do we now
-            """
-            self.model = KMeans(n_clusters=self.aspect_size)
-            self.model.fit(self.base_embeddings.get_weights())
-            # Persist the core in our disk
-            pickle.dump(self.model, open(self.target_model_file, "wb"))
-
-    def get_weights(self):
+    def weights(self):
         if self.model is None:
-            self.load_model(override=False)
+            self.load()
 
         # Default value for L2 regularize
         regularize = keras.regularizers.L2(l2=0.01)
         return regularize(self.model.cluster_centers_) * K.convert_to_tensor(self.model.cluster_centers_)
 
-    def get_vocab(self):
+    def vocabulary(self):
         """
         Our aspects have label (yet associated). We could opt for the most representative word, yet for that we have to
         calculate it or infer by hand the meaning, for now it simply is a number (its index).

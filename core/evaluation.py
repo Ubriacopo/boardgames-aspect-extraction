@@ -17,10 +17,9 @@ def extract_top_k_words_of_aspect(aspect: torch.tensor, word_embeddings,
     This function will extract the top k words of each aspect.
     @return: A list of aspects with their top k words. [str, float, int]
     """
-    aspect = aspect.cpu()
-    similarity = word_embeddings.matmul(aspect).detach().numpy()
-
-    ordered_words = np.argsort(similarity)[::-1]
+    # similarity = word_embeddings.matmul(aspect).detach().numpy()
+    similarity = word_embeddings.matmul(aspect)
+    ordered_words = torch.argsort(similarity, descending=True)
     top_k_words = [(inverse_vocabulary[w], similarity[w], w) for w in ordered_words[:top_k]]
     # Normalize the data for comparison
 

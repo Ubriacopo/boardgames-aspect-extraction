@@ -66,7 +66,7 @@ class LoadCorpusUtility(LoadDataUtility):
             lambda x: [t if word_count[str(t)] > self.min_word_count else "<UNK>" for t in x]
         )
 
-        return [[str(tokenized) for tokenized in line] for line in lines]
+        return [[tokenized for tokenized in line] for line in lines]
 
     def make_corpus_dictionary(self, corpus: str):
         corpus = pd.read_csv(corpus)[self.column_name].swifter.apply(lambda x: x.split(" "))

@@ -10,6 +10,7 @@ from core.model import ABAEGenerator
 from core.utils import LoadCorpusUtility
 
 
+# todo fix file
 @dataclass
 class AbaeModelConfiguration:
     """
@@ -19,7 +20,7 @@ class AbaeModelConfiguration:
           corpus_file: Path to the corpus file.
           model_name: str Name of model
           max_vocab_size: Maximum size of the vocabulary.
-          word_embedding_size: Size of the word embeddings.
+          embedding_size: Size of the word embeddings.
           aspect_embedding_size: Size of the aspect embeddings.
           aspect_size: Number of aspects.
           max_sequence_length: Maximum length of the input sequences.
@@ -31,8 +32,8 @@ class AbaeModelConfiguration:
     model_name: str = "abae_model"
 
     aspect_size: int = 16
-    max_vocab_size: int = 10000
-    word_embedding_size: int = 128
+    max_vocab_size: int = None
+    embedding_size: int = 128
     aspect_embedding_size: int = 128
 
     max_sequence_length: int = 256
@@ -49,12 +50,10 @@ class AbaeModelManager:
         # Load the Embeddings
         self.embedding_model: WordEmbedding | None = None
         self.aspect_model: AspectEmbedding | None = None
-        self.__load_embeddings(override_existing)
 
+        self.__load_embeddings(override_existing)
         self.model_generator: ABAEGenerator = ABAEGenerator(
-            self.config.max_sequence_length,
-            self.config.negative_sample_size,
-            self.embedding_model, self.aspect_model
+            self.config.max_sequence_length, self.config.negative_sample_size, self.embedding_model, self.aspect_model
         )
 
         # The training model instance.
@@ -62,24 +61,16 @@ class AbaeModelManager:
         self._ev_model = None
 
     def __load_embeddings(self, override_existing: bool):
-        self.embedding_model = WordEmbedding(
-            LoadCorpusUtility(column_name="comments"),
-            max_vocab_size=self.config.max_vocab_size,
-            embedding_size=self.config.word_embedding_size,
-            target_model_file=f"{self.config.output_path}/{self.config.model_name}.embeddings.model",
-            corpus_file=self.config.corpus_file
-        )
+        c = self.config  # To make it more readable.
+        keep = not override_existing
 
-        self.embedding_model.load_model(override=override_existing)
+        load_utility = LoadCorpusUtility(column_name="comments")
 
-        self.aspect_model = AspectEmbedding(
-            aspect_size=self.config.aspect_size,
-            embedding_size=self.config.aspect_embedding_size,
-            target_model_file=f"{self.config.output_path}/{self.config.model_name}.aspect-embeddings.model",
-            base_embeddings=self.embedding_model
-        )
+        self.embedding_model = WordEmbedding(c.embedding_size, c.output_path, c.model_name, c.max_vocab_size)
+        self.embedding_model.generate(corpus=load_utility.load_data(c.corpus_file), sg=True, load_existing=keep)
 
-        self.aspect_model.load_model(override=override_existing)
+        self.aspect_model = AspectEmbedding(c.aspect_size, c.aspect_embedding_size, c.output_path, c.model_name)
+        self.aspect_model.generate(embedding_weights=self.embedding_model.weights(), load_existing=keep)
 
     def prepare_evaluation_model(self):
         model_file_path = f"{self.config.output_path}/{self.config.model_name}.keras"

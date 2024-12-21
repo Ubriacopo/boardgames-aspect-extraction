@@ -209,7 +209,9 @@ class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
         tokens = self.nlp(entry)
         for rule in self.rules:
             tokens = rule(tokens)
-        return [token.lemma_ for token in tokens if not self.is_invalid_token(token)]
+
+        # Lowercase the lemma. todo: Vedi se cosi migliora e evitiamo casi come AP e ap
+        return [token.lemma_.lower() for token in tokens if not self.is_invalid_token(token)]
 
 
 class PreProcessingService:

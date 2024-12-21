@@ -1,7 +1,9 @@
 What should I do next?
 
 # Plan: Next steps...
-
+- Sistema lower che a quanto pare non viene usato! (AP e ap sono parole distinte!)
+MEGA IMPORTANTE TODO
+- Drop il longest sampler. Lasciamo perdere.
 ### 1 - Dividi recensioni con sentence parser e tienile.
 
 - Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.

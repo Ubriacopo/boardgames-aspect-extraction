@@ -83,6 +83,8 @@ class ABAEGenerator(ModelGenerator):
 
 
 # TODO LDAModelGenerator
+
+
 class AttentionLessABAEGenerator(ABAEGenerator):
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         positive_input_shape = (self.max_seq_length,)  # 512

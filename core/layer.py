@@ -7,7 +7,7 @@ from keras import initializers
 from keras import ops as K
 from keras import regularizers
 
-
+# todo fix size passed in wrong place warning
 # todo get rid of unused regularizers
 class Attention(Layer):
 
