@@ -1,13 +1,23 @@
 What should I do next?
 
 # Plan: Next steps...
-- Sistema lower che a quanto pare non viene usato! (AP e ap sono parole distinte!)
-MEGA IMPORTANTE TODO
-- Drop il longest sampler. Lasciamo perdere.
-### 1 - Dividi recensioni con sentence parser e tienile.
 
-- Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
-- Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
+### 1 -
+
+todo:
+- Vedi se riesci senza sprecare troppo tempo a fare un sampler a modo di generator che viene chiamato
+on demand da preprocessingservice
+- Fai il controllo di quanti commenti contengono nomi dei giochi. 
+  - Se sono tanti ha senso pre-processare e sostituisco con tag
+- KickstarterRemovalRule prima di sampling
+
+> pip install date-spacy
+ 
+You can also normalize numbers (e.g., replacing them with a placeholder like <NUM>) if their exact value is irrelevant
+but their presence matters.
+https://spacy.io/universe/project/date-spacy
+
+> Sostituire dates come 10/11/2023 in token \<DATE>
 
 ### 2 - Begin writing the report
 
@@ -56,7 +66,6 @@ Fare ricerca con kerastuner? #todo vedere se si puo
 Togli layer di attention e vediamo se cambia qualcosa
 
 ### 5 - LDA per confronto con il modello scelto
-
 https://www.kaggle.com/code/pranjalsoni17/topic-modelling-using-lda
 
 ### 6 - k-Means come metodo di base per confrontare tutto
