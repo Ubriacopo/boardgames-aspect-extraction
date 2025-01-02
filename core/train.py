@@ -31,7 +31,7 @@ class AbaeModelConfiguration:
     embedding_size: int = 128
     aspect_embedding_size: int = 128
 
-    max_sequence_length: int = 256
+    max_sequence_length: int = 80
     negative_sample_size: int = 15
 
     output_path: str = "./output"

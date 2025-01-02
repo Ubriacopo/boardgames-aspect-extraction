@@ -112,7 +112,7 @@ class WordEmbedding(Embedding):
             weights=self.weights(), trainable=False, name=layer_name, mask_zero=True
         )
 
-    def vocabulary(self) -> object:
+    def vocabulary(self) -> dict:
         """
         If the core cannot be built we throw an error.
         @return: object with keys-value pairs for text-int encoding
@@ -151,7 +151,7 @@ class AspectEmbedding(Embedding):
             pickle.dump(self.model, open(f"{self.target_path}/{self.name}.model", "wb"))
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.weights())
+        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=self.embedding_size, weights=self.weights())
 
     def weights(self):
         if self.model is None:

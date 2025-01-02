@@ -47,5 +47,5 @@ def coherence_per_aspect(aspects: list[list], text_dataset: list[str], topn=2) -
 
 
 # Main run script. TODO
- if __name__ == "__main__":
+if __name__ == "__main__":
     pass

@@ -44,7 +44,7 @@ class BaseBoardgameDataset(Dataset):
         with_lost_information = self.dataset.map(lambda x: len(x) > max_seq_length).sum()
 
         # To what size we have to pad our sequences:
-        padding_size = np.max([max_found_length, max_seq_length])
+        padding_size = np.min([max_found_length, max_seq_length])
 
         if with_lost_information > 0:
             print(f"We loose information on {with_lost_information} points."
@@ -71,7 +71,7 @@ class BaseBoardgameDataset(Dataset):
 
 
 class PositiveNegativeCommentGeneratorDataset(BaseBoardgameDataset):
-    def __init__(self, csv_dataset_path: str, vocabulary: dict, negative_size: int, max_seq_length: int = 256):
+    def __init__(self, csv_dataset_path: str, vocabulary: dict, negative_size: int, max_seq_length: int = 80):
         print(f"Loading dataset from file: {csv_dataset_path}")
         dataset = pd.read_csv(csv_dataset_path)
         self.negative_size = negative_size
@@ -86,7 +86,7 @@ class PositiveNegativeCommentGeneratorDataset(BaseBoardgameDataset):
 
 
 class EmbeddingsDataset(BaseBoardgameDataset):
-    def __init__(self, csv_dataset_path: str, embeddings_model: gensim.models.Word2Vec, max_seq_length: int = 256):
+    def __init__(self, csv_dataset_path: str, embeddings_model: gensim.models.Word2Vec, max_seq_length: int = 80):
         dataset = pd.read_csv(csv_dataset_path)
         self.embeddings_model = embeddings_model
         super().__init__(dataset, embeddings_model.wv.key_to_index, max_seq_length)
