@@ -53,6 +53,9 @@ class BggDatasetLongestSampler(ConsumingDatasetSampler):
     Compared to the random sampler we cannot assure that we keep track of reviews of any kind of game.
     I expect more complex games to receive longer reviews and therefore my network to better
     learn to recognize that exact topi in a review.
+
+    I won't use this. This is given by the fact that now we split sentences and this wouldn't make much sense as
+    it's not given for sure that longer reviews have longer sentences (they might just be many).
     """
 
     def __init__(self, batch_size: int, corpus_file_path: str, random_state: int = 42):
