@@ -59,33 +59,32 @@ class Embedding(ABC):
 
 
 class WordEmbedding(Embedding):
-    def __init__(self, emb_size: int, target_path: str, name: str, max_vocab_size: int = None, min_word_count: int = 3):
+    def __init__(self, embedding_size: int, target_path: str, name: str = "embeddings",
+                 max_vocab_size: int = None, min_word_count: int = 3):
         """
         As a good reference look at: https://github.com/piskvorky/gensim/wiki/Using-Gensim-Embeddings-with-Keras-and-Tensorflow
         @param max_vocab_size:
-        @param emb_size:
+        @param embedding_size:
         @param min_word_count:
         """
-        super(WordEmbedding, self).__init__(emb_size, target_path, name)
+        super(WordEmbedding, self).__init__(embedding_size, target_path, name)
         self.model: gensim.models.Word2Vec | None = None  # None loaded by default.
         self.max_vocab_size: int = max_vocab_size
         self.min_word_count: int = min_word_count
 
     def load(self):
-        file_path = f"{self.target_path}/{self.name}.embeddings.keras"
+        file_path = f"{self.target_path}/{self.name}.keras"
         if not Path(file_path).exists():
             raise f"To read a model the model has to exist. File: {file_path} does not exist."
         self.model = gensim.models.Word2Vec.load(str(Path(file_path)))
 
     def generate(self, corpus: list, persist: bool = True, sg: bool = True, load_existing: bool = False):
-        try:
-            # todo sistema f
-            if load_existing:
-                self.load()
-                return
+        if load_existing:
+            try:
+                return self.load()
 
-        except Exception as e:
-            print(e)
+            except Exception as e:
+                print(e)
 
         self.model = gensim.models.Word2Vec(
             sentences=corpus, vector_size=self.embedding_size, workers=8,
@@ -94,7 +93,7 @@ class WordEmbedding(Embedding):
 
         # Persist
         if persist:
-            self.model.save(f"{self.target_path}/{self.name}.embeddings.keras")
+            self.model.save(f"{self.target_path}/{self.name}.keras")
 
     def weights(self):
         if self.model is None:
@@ -125,32 +124,31 @@ class WordEmbedding(Embedding):
 
 
 class AspectEmbedding(Embedding):
-    def __init__(self, aspect_size: int, embedding_size: int, target_path: str, name: str):
+    def __init__(self, aspect_size: int, embedding_size: int, target_path: str, name: str = "aspect-embeddings"):
         super(AspectEmbedding, self).__init__(embedding_size, target_path, name)
         self.model: KMeans | None = None
         self.aspect_size = aspect_size
 
     def load(self):
-        file_path = f"{self.target_path}/{self.name}.aspect-embeddings.model"
+        file_path = f"{self.target_path}/{self.name}.model"
         if not Path(file_path).exists():
             raise f"To read a model the model has to exist. File: {file_path} does not exist."
         self.model = pickle.load(open(file_path, "rb"))
 
     def generate(self, embedding_weights, persist: bool = True, load_existing: bool = False):
-        try:
-            # todo sistema f
-            if load_existing:
-                self.load()
-                return
 
-        except Exception as e:
-            print(e)
+        if load_existing:
+            try:
+                return self.load()
+
+            except Exception as e:
+                print(e)
 
         self.model = KMeans(n_clusters=self.aspect_size)
         self.model.fit(embedding_weights)
 
         if persist:
-            pickle.dump(self.model, open(f"{self.target_path}/{self.name}.aspect-embeddings.model", "wb"))
+            pickle.dump(self.model, open(f"{self.target_path}/{self.name}.model", "wb"))
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
         return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=128, weights=self.weights())

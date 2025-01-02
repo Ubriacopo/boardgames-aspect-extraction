@@ -1,13 +1,20 @@
 What should I do next?
 
-# Plan: Next steps...
-- Sistema lower che a quanto pare non viene usato! (AP e ap sono parole distinte!)
-MEGA IMPORTANTE TODO
-- Drop il longest sampler. Lasciamo perdere.
-### 1 - Dividi recensioni con sentence parser e tienile.
+>https://seunghan96.github.io/nlp/absa/ABAE/ 
 
-- Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
-- Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
+# Plan: Next steps...
+-[X] Sistema lower che a quanto pare non viene usato! (AP e ap sono parole distinte!)
+MEGA IMPORTANTE TODO
+-[X] Drop il longest sampler. Lasciamo perdere.
+
+
+-[x] Dividi recensioni con sentence parser e tienile.
+
+-[x] Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
+-[x] Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
+
+-[ ] Metric to measure to make early stopping: look at model.ipynb
+  - Best bets are: Perplexity and Coherence Score -> Using k-fold cv 
 
 ### 2 - Begin writing the report
 

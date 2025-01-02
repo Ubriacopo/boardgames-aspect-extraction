@@ -60,10 +60,14 @@ class ABAEGenerator(ModelGenerator):
     def make_training_model(self, existing_model_path: str = None):
         if existing_model_path is not None:
             try:
-                model = keras.models.load_model(existing_model_path,
-                                                custom_objects={'max_margin_loss': max_margin_loss})
+                model = keras.models.load_model(
+                    existing_model_path, custom_objects={'max_margin_loss': max_margin_loss}
+                )
+
                 return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+
             except Exception as error:
+                # We keep going and simply generate a new model if we fail in finding the one in the path provided
                 print(error)
 
         inputs, outputs = self.make_layers()

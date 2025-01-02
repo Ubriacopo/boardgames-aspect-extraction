@@ -6,6 +6,8 @@ My reference paper I think:
 >
 > https://aclanthology.org/P17-1036.pdf
 
+> https://seunghan96.github.io/nlp/absa/ABAE/
+
 Another one could be:
 > https://www.researchgate.net/publication/220816965_An_Unsupervised_Aspect-Sentiment_Model_for_Online_Reviews
 
