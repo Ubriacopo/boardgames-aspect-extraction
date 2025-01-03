@@ -2,9 +2,7 @@ import logging
 import sys
 import swifter
 from abc import abstractmethod
-
 from keras import ops as K
-import spacy
 import pandas as pd
 
 from core.pre_processing import PreProcessingService
@@ -29,12 +27,12 @@ class LoadCorpusAndProcessUtility(LoadDataUtility):
 
 
 class LoadCorpusUtility(LoadDataUtility):
-    def __init__(self, min_word_count=2, column_name: str = "comments"):
+    def __init__(self, min_word_count=10, column_name: str = "comments"):
         """
         This utility considers the corpus as already pre-processed by default. A different language model
         can be passed to apply a more complex pipeline.
         It is specialized on our corpus file and structure.
-        @param min_word_count: The minimum word count to consider a word as valid. (Default at least 3)
+        @param min_word_count: The minimum word count to consider a word as valid. (Default to 10 as was for ABAE proposal)
         """
         # We are basically splitting only as the text was already pre-processed.
         # self.nlp = spacy.blank("en") if custom_language_model is None else custom_language_model
@@ -83,8 +81,8 @@ class LoadCorpusUtility(LoadDataUtility):
 def max_margin_loss(y_true, y_pred):
     """
     The max margin loss function is used to train the model.
-    It is a hinge loss function that is used to train the model to maximize the margin between the correct class
-    and the other classes.
+    It is a hinge loss function that is used to train the model to maximize the
+    margin between the correct class and the other classes.
 
     @param y_true: The true labels.
     @param y_pred: The predicted labels.

@@ -1,9 +1,10 @@
 import multiprocessing
 from abc import abstractmethod
-from functools import reduce
 from pathlib import Path
 import itertools
-from pandas import Series, DataFrame
+
+from dateparser.search import search_dates
+from pandas import DataFrame
 from spacy.lang.en import English
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
@@ -144,22 +145,19 @@ class LemmatizeTextRule(ProcessingRule):
         return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
 
 
-class DateFilterTextRule(ProcessingRule):
-    def __init__(self):
-        self.nlp = spacy.blank("en")
-        # We require spacy to recognize if the dates.
-        # I had to separate it from the lemmatizer as using this pipe would break the trained md (Dunno why).
-        self.nlp.add_pipe("find_dates")
-
+class DateRemoverRule(ProcessingRule):
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
-            return None  # We have to stop to avoid exception
+            return None
 
-        if entry is list:
+        if type(entry) is list:
             return list(itertools.chain(*[self.process(e) for e in entry]))
-
-        for e in self.nlp(entry).ents:
-            entry = entry.replace(e.text, "<DATE>")
+        # todo continua da qui devi anche rimuovere i simboli strani in giro + e -
+        # search_dates("It took me 2 hours ago to beat the game", settings={'STRICT_PARSING': True, 'PARSERS': ['absolute-time']})
+        matches = search_dates(entry, settings={'STRICT_PARSING': True})
+        for match in matches:
+            # Replace the found word with a generic token.
+            entry.replace(match[0], "<TIME_TOKEN>")
 
         return entry
 
@@ -187,6 +185,7 @@ class GameNamesMatcherReplacementRule(MatcherReplacementRuleOnLemma):
         super().__init__(matcher, "<GAME_NAME>")
 
 
+# This works quite badly. So we won't use it at all.
 class DateMatcherReplacementRule(MatcherReplacementRuleOnLemma):
     def __init__(self, vocab):
         matcher = Matcher(vocab)
@@ -233,10 +232,10 @@ class PreProcessingService:
                 CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 SplitSentencesRule(),
+                DateRemoverRule(),
                 ShortTextFilterRule(min_words_in_sentence=3),
                 LemmatizeTextWithMatcherRules(rules=[
                     GameNamesMatcherReplacementRule(nlp.vocab, game_names),
-                    DateMatcherReplacementRule(nlp.vocab),
                 ]),
                 ShortTextFilterRule(min_words_in_sentence=3),
                 ListToTextRegenerationRule()
@@ -341,3 +340,9 @@ class PreProcessingService:
         ds = self.pre_process_dataset(target_size, dataset_sampler)
         ds.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w", header=True, index=False)
         return f"{self.target_path}/{name}.preprocessed.csv"
+
+
+# Main run script. TODO
+if __name__ == "__main__":
+    # Pre-processing main function call.
+    pass

@@ -54,6 +54,7 @@ class BggDatasetLongestSampler(ConsumingDatasetSampler):
     I expect more complex games to receive longer reviews and therefore my network to better
     learn to recognize that exact topi in a review.
 
+    Update:
     I won't use this. This is given by the fact that now we split sentences and this wouldn't make much sense as
     it's not given for sure that longer reviews have longer sentences (they might just be many).
     """

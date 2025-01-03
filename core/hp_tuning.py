@@ -1,7 +1,9 @@
+from __future__ import annotations
 import gc
 import os
+
 import uuid
-from abc import abstractmethod
+from abc import abstractmethod, ABC
 from random import Random
 
 import torch
@@ -9,6 +11,18 @@ from torch.utils.data import ConcatDataset, Subset, DataLoader
 
 from core.dataset import PositiveNegativeCommentGeneratorDataset
 from core.train import AbaeModelManager, AbaeModelConfiguration
+
+"""
+    I feel like this goes out of the scope of the project.
+    The approach is what is to be considered and not the results.
+    
+    While the idea to tune the parameters is a real work case scenario it is very
+    time consuming. I will leave this here but probably won't dive too deep into
+    parameter tuning and just use some default good enough values based on other studies.
+    
+    I still have made the experience on  hp tuning at the Statistical Methods for ML course.
+    todo: Decidi se procedere comunque.
+"""
 
 
 class TunableParameter:
@@ -20,57 +34,78 @@ class TunableParameter:
         return self.get_value(*args, **kwargs)
 
 
-class RandomTunableSteppedParameter(TunableParameter):
+class RandomTunableParameter(TunableParameter, ABC):
+    def __init__(self, seed: int):
+        self.random_generator = Random(seed)
+
+
+class RandomTunableSteppedParameter(RandomTunableParameter):
     def __init__(self, min_value: int | float, max_value: int | float, step: int | float, seed: int = 12):
+        """
+        Returns a random value in the given range with a step equal to a multiple of the step given.
+        @param min_value: The minimum value.
+        @param max_value: The maximum value.
+        @param step: The smallest step to perform.
+        @param seed: Seed to randomly select one element.
+        """
+        super().__init__(seed)
+
+        # Range of allowed values
         self.min_value = min_value
         self.max_value = max_value
 
+        # Smallest difference between values
         self.step = step
 
-        self.random_generator = Random(seed)
+        # The highest number of steps we can perform
         self.step_max_gen = int((self.max_value - self.min_value) / self.step)
-        self.generated_values = []
 
     def get_value(self, not_previous: bool = False):
-        value = self.min_value + self.step * self.random_generator.randint(0, self.step_max_gen)
-        self.generated_values.append(value)
-        return value
+        return self.min_value + self.step * self.random_generator.randint(0, self.step_max_gen)
 
 
-class RandomTunableDiscreteParameter(TunableParameter):
+class RandomTunableDiscreteParameter(RandomTunableParameter):
     def __init__(self, values_list: list, seed: int = 12):
+        """
+        We get a list of possible values from which to pick an element.
+        @param values_list: The possible values.
+        @param seed: Seed to randomly select one element.
+        """
+        super().__init__(seed)
         self.values_list = values_list
-        self.returned_value_indexes = []
-
-        self.random_generator = Random(seed)
 
     def get_value(self, not_previous: bool = False, seed: int = 12):
-        index = self.random_generator.randint(0, len(self.values_list) - 1)
-        self.returned_value_indexes.append(index)
-        return self.values_list[index]
+        return self.values_list[self.random_generator.randint(0, len(self.values_list) - 1)]
 
 
-class ABAEHyperparametersWrapper:
-    def __init__(self):
-        self.parameters = dict(
-            aspect_size=RandomTunableSteppedParameter(14, 20, 1),
-            embedding_size=RandomTunableDiscreteParameter([64, 128, 192]),
-            epochs=RandomTunableDiscreteParameter([5, 7, 10, 14, 20]),
-            batch_size=RandomTunableDiscreteParameter([32, 64, 128])
+class ABAERandomHyperparametersSelectionWrapper:
+    @staticmethod
+    def create() -> ABAERandomHyperparametersSelectionWrapper:
+        return (
+            ABAERandomHyperparametersSelectionWrapper()
+            .__add_parameter(RandomTunableSteppedParameter(14, 20, 1), 'aspect_size')
+            .__add_parameter(RandomTunableDiscreteParameter([100, 150, 200]), 'embedding_size')
+            .__add_parameter(RandomTunableDiscreteParameter([5, 10, 15, 20]), 'epochs')
+            .__add_parameter(RandomTunableDiscreteParameter([32, 64, 128]), 'batch_size')
         )
+
+    def __init__(self):
+        self.parameters = dict()
+
+    def __add_parameter(self, parameter: TunableParameter, name: str) -> ABAERandomHyperparametersSelectionWrapper:
+        self.parameters[name] = parameter
+        return self
 
     def __getitem__(self, item: str):
         return self.parameters[item]
 
     def __next__(self):
-        embedding_size = self.parameters["embedding_size"]()
-        return dict(
-            aspect_size=self.parameters["aspect_size"](),
-            embedding_size=embedding_size,
-            aspect_embedding_size=embedding_size,
-            epochs=self.parameters["epochs"](),
-            batch_size=self.parameters["batch_size"](),
-        )
+        return_dictionary = dict()
+
+        for key in self.parameters:
+            return_dictionary[key] = self.parameters[key]()
+
+        return return_dictionary
 
 
 class KFoldDatasetWrapper:
@@ -139,6 +174,7 @@ class KFoldDatasetWrapper:
         return test_performances, test_fold_sizes
 
 
+# todo move scripts
 if __name__ == "__main__":
     # os.environ['KERAS_BACKEND'] = "torch"
     ## Parameters scouting. We scout on our main dataset.
@@ -147,7 +183,7 @@ if __name__ == "__main__":
     # Using the whole dataset ensures representativeness and better alignment with real-world performance but can be computationally expensive.
     # A common approach is to start with subsets for initial tuning and refine on the full dataset when computationally feasible.
 
-    hp = ABAEHyperparametersWrapper()
+    hp = ABAERandomHyperparametersSelectionWrapper.create()
     k_fold = KFoldDatasetWrapper(k=5)
 
     n = 15  # Amount of different test configurations. todo pass args?
@@ -163,6 +199,8 @@ if __name__ == "__main__":
             embedding_size=parameters["embedding_size"],
             aspect_embedding_size=parameters["embedding_size"],
             aspect_size=parameters["aspect_size"],
+            epochs=parameters["epochs"],
+            batch_size=parameters["batch_size"]
         )
 
         manager = AbaeModelManager(config)
@@ -172,4 +210,5 @@ if __name__ == "__main__":
         )
 
         k_fold.load_data(train_dataset)
-        k_fold.run_k_fold_cv(manager, parameters["batch_size"], parameters["epochs"])
+        k_fold.run_k_fold_cv(manager, config.batch_size, config.epochs)
+4 plays / 3,4 players  LIKE: It's Brass, with more nuances. The beer slows down the trading path, by adding a layer. The trading ports themselves are great, it creates a fresh, varied state for the map positioning with each new play, a great addition. I think that option alone may make this better than the original. The pottery is somewhat equivalent to the shipyards.  DISLIKE: More nuances, so it increases the play time slightly, more analysis paralysis. Still fiddly as ever. Many corner case rules, so many that I find it difficult to remember them all unless another player is familiar with the rules as well.  OVERALL: Love it. Our first game took about 4 hours. It seems there could be more strategies with this version. I am now interested in Age of Industry to see if there is a way to get the playtime down.

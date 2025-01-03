@@ -1,3 +1,4 @@
+import argparse
 import torch
 from gensim import corpora
 from gensim.models import CoherenceModel
@@ -13,7 +14,6 @@ def get_aspect_top_k_words(aspect: torch.tensor, word_embeddings,
     This function will extract the top k words of each aspect.
     @return: A list of aspects with their top k words. [str, float, int]
     """
-    # similarity = word_embeddings.matmul(aspect).detach().numpy()
     similarity = word_embeddings.matmul(aspect)
     ordered_words = torch.argsort(similarity, descending=True)
 
@@ -33,7 +33,7 @@ def coherence_per_aspect(aspects: list[list], text_dataset: list[str], topn=2) -
     @param aspects: As most representative words (list of list of string).
     @param text_dataset: The dataset we measure coherence on.
     @param topn: On how many of the topn track the coherence value
-    @return: Coherence per topic and the model itself aswell.
+    @return: Coherence per topic and the model itself as well.
     """
     if topn > len(aspects[0]):
         raise "I cannot take top n that is over the number of top words provided!"
@@ -48,4 +48,8 @@ def coherence_per_aspect(aspects: list[list], text_dataset: list[str], topn=2) -
 
 # Main run script. TODO
 if __name__ == "__main__":
-    pass
+    # todo pass args
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-o", "--out-dir", dest="out_dir_path", type=str, metavar='<str>', required=True,
+                        help="The path to the output directory")
+    args = parser.parse_args()

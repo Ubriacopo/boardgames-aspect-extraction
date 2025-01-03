@@ -17,7 +17,7 @@ class Embedding(ABC):
 
     def __init__(self, embedding_size: int, target_path: str, name: str):
         self.target_path: str = target_path  # File in which core is stored
-        self.name = name
+        self.name: str = name
         self.embedding_size: int = embedding_size
 
     @abstractmethod
@@ -42,13 +42,6 @@ class Embedding(ABC):
         """
         pass
 
-    def get_embedding_size(self):
-        """
-        To easier access interesting data of our class.
-        @return: int giving the output size of an embedding of a word.
-        """
-        return self.embedding_size
-
     @abstractmethod
     def vocabulary(self):
         """
@@ -56,6 +49,13 @@ class Embedding(ABC):
         @return: the vocabulary if it was generated
         """
         pass
+
+    def get_embedding_size(self):
+        """
+        To easier access interesting data of our class.
+        @return: int giving the output size of an embedding of a word.
+        """
+        return self.embedding_size
 
 
 class WordEmbedding(Embedding):
@@ -148,10 +148,12 @@ class AspectEmbedding(Embedding):
         self.model.fit(embedding_weights)
 
         if persist:
+            # noinspection PyTypeChecker
             pickle.dump(self.model, open(f"{self.target_path}/{self.name}.model", "wb"))
 
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=self.embedding_size, weights=self.weights())
+        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=self.embedding_size,
+                                            weights=self.weights())
 
     def weights(self):
         if self.model is None:
