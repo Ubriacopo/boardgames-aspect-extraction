@@ -96,7 +96,7 @@ class AbaeModelManager:
         return self.prepare_training_model() if train else self.prepare_evaluation_model()
 
 
-# Main run script. TODO
+# Main run script. TODO move to scripts folder
 if __name__ == "__main__":
     # os.environ['KERAS_BACKEND'] = "torch"
     p = argparse.ArgumentParser()

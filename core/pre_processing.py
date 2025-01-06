@@ -1,5 +1,6 @@
 import multiprocessing
 from abc import abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 import itertools
 
@@ -37,6 +38,9 @@ class ProcessingRule:
 
     def branches(self):
         return False
+
+    def __call__(self, entry: str | None | list, extensive_logging: bool = False):
+        return self.process(entry, extensive_logging)
 
 
 class SplitSentencesRule(ProcessingRule):
@@ -152,12 +156,15 @@ class DateRemoverRule(ProcessingRule):
 
         if type(entry) is list:
             return list(itertools.chain(*[self.process(e) for e in entry]))
-        # todo continua da qui devi anche rimuovere i simboli strani in giro + e -
-        # search_dates("It took me 2 hours ago to beat the game", settings={'STRICT_PARSING': True, 'PARSERS': ['absolute-time']})
-        matches = search_dates(entry, settings={'STRICT_PARSING': True})
-        for match in matches:
-            # Replace the found word with a generic token.
-            entry.replace(match[0], "<TIME_TOKEN>")
+
+        # By doing this before the next I ensure that the dates are replaced by a date token that can handled differently
+        matches = search_dates(
+            entry, settings={'STRICT_PARSING': True, 'PARSERS': ['absolute-time'], 'CACHE_SIZE_LIMIT': 0}
+        )
+
+        if matches is not None and type(matches) is list:
+            for match in matches:
+                entry = entry.replace(match[0], "<date>")
 
         return entry
 
@@ -189,7 +196,7 @@ class GameNamesMatcherReplacementRule(MatcherReplacementRuleOnLemma):
 class DateMatcherReplacementRule(MatcherReplacementRuleOnLemma):
     def __init__(self, vocab):
         matcher = Matcher(vocab)
-        matcher.add("<DATE>", [[{"ENT_TYPE": "DATE"}, {"OP": "?"}]])
+        matcher.add("<DATE>", [[{"ENT_TYPE": "DATE", "OP": "+"}]])
         super().__init__(matcher, "<DATE>")
 
 
@@ -209,8 +216,36 @@ class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
         for rule in self.rules:
             tokens = rule(tokens)
 
-        # Lowercase the lemma. todo: Vedi se cosi migliora e evitiamo casi come AP e ap
         return [token.lemma_.lower() for token in tokens if not self.is_invalid_token(token)]
+
+
+class WordNoiseRemover(ProcessingRule):
+    """
+    I see a problem with this approach: We lemmatized before doing the "cleanup" on words.
+    It should be done before, but it might be very slow!
+    """
+
+    def __init__(self, char_sequence: str = "-+."):
+        """
+
+        @param char_sequence: Characters considered noise at the start and/or end of a word
+        """
+        self.char_sequence = char_sequence
+
+    def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
+        if entry is None:
+            return None
+
+        if type(entry) is list:
+            for i in range(len(entry)):
+                stripped = entry[i].lstrip(self.char_sequence).rstrip(self.char_sequence)
+                entry[i] = stripped if len(stripped) > 0 else entry[i]
+
+            # Return the new built sentence.
+            return " ".join(entry)
+
+        # Split the text as we expect it to be words.
+        return self.process(entry.split(" "))
 
 
 class PreProcessingService:
@@ -222,23 +257,29 @@ class PreProcessingService:
     @staticmethod
     def full_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
         nlp = spacy.load('en_core_web_md')
+        # Do we have any custom stopwords? I considered + and - BUT they might bring meaning.
+        # nlp.Defaults.stop_words |= {"<DATE_TOKEN>", "<TIME_TOKEN>"}
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # Keep tag content rule (in case the tag has an inner description)
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\](.*?)\[/\1\]', r'\2'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
+                # CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 SplitSentencesRule(),
-                DateRemoverRule(),
                 ShortTextFilterRule(min_words_in_sentence=3),
+                WordNoiseRemover(),
+                # DateRemoverRule(), takes too long
                 LemmatizeTextWithMatcherRules(rules=[
                     GameNamesMatcherReplacementRule(nlp.vocab, game_names),
+                    DateMatcherReplacementRule(nlp.vocab)
                 ]),
                 ShortTextFilterRule(min_words_in_sentence=3),
-                ListToTextRegenerationRule()
+                ListToTextRegenerationRule(),
+                # DateRemoverRule(), This is way too slow!
             ],
             target_path,
             "full_pipeline",
@@ -250,14 +291,16 @@ class PreProcessingService:
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\].*?\[/\1\]'),
+                # Keep tag content rule (in case the tag has an inner description)
+                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\](.*?)\[/\1\]', r'\2'),
                 # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
                 # Keep tag content rule (in case the tag has an inner description)
                 CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
+                # CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 SplitSentencesRule(),
                 ShortTextFilterRule(min_words_in_sentence=3),
+                WordNoiseRemover(),
                 LemmatizeTextRule(),
                 ShortTextFilterRule(),
                 ListToTextRegenerationRule()
@@ -342,7 +385,12 @@ class PreProcessingService:
         return f"{self.target_path}/{name}.preprocessed.csv"
 
 
-# Main run script. TODO
-if __name__ == "__main__":
-    # Pre-processing main function call.
-    pass
+@dataclass
+class DatasetGeneration:
+    pipeline: PreProcessingService
+    target_size: int
+    sampler: ConsumingDatasetSampler
+
+    def __iter__(self):
+        # For a rapid unpacking of the object
+        return iter((self.pipeline, self.target_size, self.sampler))

@@ -211,4 +211,3 @@ if __name__ == "__main__":
 
         k_fold.load_data(train_dataset)
         k_fold.run_k_fold_cv(manager, config.batch_size, config.epochs)
-4 plays / 3,4 players  LIKE: It's Brass, with more nuances. The beer slows down the trading path, by adding a layer. The trading ports themselves are great, it creates a fresh, varied state for the map positioning with each new play, a great addition. I think that option alone may make this better than the original. The pottery is somewhat equivalent to the shipyards.  DISLIKE: More nuances, so it increases the play time slightly, more analysis paralysis. Still fiddly as ever. Many corner case rules, so many that I find it difficult to remember them all unless another player is familiar with the rules as well.  OVERALL: Love it. Our first game took about 4 hours. It seems there could be more strategies with this version. I am now interested in Age of Industry to see if there is a way to get the playtime down.
