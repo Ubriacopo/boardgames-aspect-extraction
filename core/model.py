@@ -3,8 +3,8 @@ from abc import abstractmethod
 import keras
 
 import core.embeddings
-import layer
-from utils import max_margin_loss
+import core.layer as layer
+from core.utils import max_margin_loss
 
 
 class ModelGenerator:
@@ -79,46 +79,6 @@ class ABAEGenerator(ModelGenerator):
 
             if len(model.outputs) == 1:
                 outputs = [model.outputs[0], model.layers[3].output, model.layers[6].output]
-                return keras.Model(inputs=model.inputs, outputs=outputs)
-
-            return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
-
-        return super().make_model(None)
-
-
-# TODO LDAModelGenerator
-
-
-class AttentionLessABAEGenerator(ABAEGenerator):
-    def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        positive_input_shape = (self.max_seq_length,)  # 512
-        negative_input_shape = (self.negative_length, self.max_seq_length)
-
-        pos_input_layer = keras.layers.Input(shape=positive_input_shape, name='positive', dtype='int32')
-        neg_input_layer = keras.layers.Input(shape=negative_input_shape, name='negative', dtype='int32')
-
-        emb_layer = self.emb_model.build_embedding_layer(layer_name="word_embedding")
-
-        embeddings = emb_layer(pos_input_layer)
-        average = layer.Average()(embeddings)  # (64, 1017, 128) -> (64, 128) Avg of the embeddings
-
-        negative_embeddings = emb_layer(neg_input_layer)
-        neg_average = layer.Average()(negative_embeddings)  # (64, 10, 1017, 128) -> (64, 128)
-
-        aspect_size = self.aspect_emb_model.aspect_size
-        dense_layer = keras.layers.Dense(units=aspect_size, activation='softmax')(embeddings)
-        aspect_embeddings = self.aspect_emb_model.build_embedding_layer("aspect_embedding")(dense_layer)
-
-        output = layer.MaxMargin(name="max_margin")([average, neg_average, aspect_embeddings])
-        # Model outputs: [Loss, AttentionWeights, AspectProbability]
-        return [pos_input_layer, neg_input_layer], [output, dense_layer]
-
-    def make_model(self, existing_model_path: str = None):
-        if existing_model_path is not None:
-            model = keras.models.load_model(existing_model_path, custom_objects={'max_margin_loss': max_margin_loss})
-
-            if len(model.outputs) == 1:
-                outputs = [model.outputs[0], model.layers[6].output]
                 return keras.Model(inputs=model.inputs, outputs=outputs)
 
             return keras.Model(inputs=model.inputs, outputs=model.outputs[0])

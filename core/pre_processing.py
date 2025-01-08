@@ -28,15 +28,18 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H
 
 
 class ProcessingRule:
-    """
-    "Interface" on which we base processing steps.
-    """
-
     @abstractmethod
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
+        """
+        "Interface" on which we base processing steps.
+        """
         pass
 
     def branches(self):
+        """
+
+        @return: True if the step does branching, and we have for a single input multiple output streams.
+        """
         return False
 
     def __call__(self, entry: str | None | list, extensive_logging: bool = False):
@@ -85,6 +88,10 @@ class CleanTextRule(ProcessingRule):
 
 class ShortTextFilterRule(ProcessingRule):
     def __init__(self, min_words_in_sentence: int = 4):
+        """
+
+        @param min_words_in_sentence: Number of words at least required for the sentence to not be filtered out.
+        """
         self.min_words_in_sentence = min_words_in_sentence
 
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
@@ -96,6 +103,7 @@ class ShortTextFilterRule(ProcessingRule):
 
         if type(entry) is str and len(entry.split(" ")) < self.min_words_in_sentence:
             return None
+
         return entry
 
 
@@ -127,6 +135,7 @@ class ListToTextRegenerationRule(ProcessingRule):
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
             return None  # We have to stop to avoid exception
+
         # We expect the input to be a list but just in case we handle str case as well.
         return type(entry) is list and " ".join([f"{e.strip()}" for e in entry]) or entry.strip()
 
@@ -141,32 +150,12 @@ class LemmatizeTextRule(ProcessingRule):
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
         if entry is None:
             return None  # We have to stop to avoid exception
-        # todo test at least one of theese calls.
+
         if entry is list:
             return list(itertools.chain(*[self.process(e) for e in entry]))
 
-        text_tokens = self.nlp(entry.lower())
-        return [token.lemma_ for token in text_tokens if not self.is_invalid_token(token)]
-
-
-class DateRemoverRule(ProcessingRule):
-    def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
-        if entry is None:
-            return None
-
-        if type(entry) is list:
-            return list(itertools.chain(*[self.process(e) for e in entry]))
-
-        # By doing this before the next I ensure that the dates are replaced by a date token that can handled differently
-        matches = search_dates(
-            entry, settings={'STRICT_PARSING': True, 'PARSERS': ['absolute-time'], 'CACHE_SIZE_LIMIT': 0}
-        )
-
-        if matches is not None and type(matches) is list:
-            for match in matches:
-                entry = entry.replace(match[0], "<date>")
-
-        return entry
+        text_tokens = self.nlp(entry)
+        return [token.lemma_.lower() for token in text_tokens if not self.is_invalid_token(token)]
 
 
 class MatcherReplacementRuleOnLemma:
@@ -192,12 +181,40 @@ class GameNamesMatcherReplacementRule(MatcherReplacementRuleOnLemma):
         super().__init__(matcher, "<GAME_NAME>")
 
 
-# This works quite badly. So we won't use it at all.
 class DateMatcherReplacementRule(MatcherReplacementRuleOnLemma):
     def __init__(self, vocab):
         matcher = Matcher(vocab)
         matcher.add("<DATE>", [[{"ENT_TYPE": "DATE", "OP": "+"}]])
         super().__init__(matcher, "<DATE>")
+
+
+class NumberMatcherReplacementRule(MatcherReplacementRuleOnLemma):
+    def __init__(self, vocab):
+        matcher = Matcher(vocab)
+        matcher.add("<NUM>", [[{"LIKE_NUM": True}]])
+        super().__init__(matcher, "<NUM>")
+
+
+class PlayerCountReplacementRule(MatcherReplacementRuleOnLemma):
+    def __init__(self, vocab):
+        """
+        To match: 2p, 2-4p 2/4p.
+        Should I also match 1-2 players?
+        @param vocab:
+        """
+        matcher = Matcher(vocab)
+        matcher.add("<PLAYER_NUM>", [
+            [
+                {"TEXT": {"REGEX": r"^[1-9]$"}, "OP": "?"},
+                {"IS_PUNCT": True, "OP": "?"},
+                {"TEXT": {"REGEX": r"^[1-9]p$"}, "OP": "{1}"}
+            ],
+            [
+                {"TEXT": {"REGEX": r"^\d{1,2}/\d{1,2}p$"}, "OP": "{1}"},
+            ]
+        ])
+
+        super().__init__(matcher, "<PLAYER_NUM>")
 
 
 class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
@@ -213,7 +230,9 @@ class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
             return list(itertools.chain(*[self.process(e) for e in entry]))
 
         tokens = self.nlp(entry)
+
         for rule in self.rules:
+            # Apply each rule on the processed tokens to replace with some better tags.
             tokens = rule(tokens)
 
         return [token.lemma_.lower() for token in tokens if not self.is_invalid_token(token)]
@@ -270,14 +289,17 @@ class PreProcessingService:
                 # CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 SplitSentencesRule(),
-                ShortTextFilterRule(min_words_in_sentence=3),
+                ShortTextFilterRule(min_words_in_sentence=10),
                 WordNoiseRemover(),
                 # DateRemoverRule(), takes too long
                 LemmatizeTextWithMatcherRules(rules=[
                     GameNamesMatcherReplacementRule(nlp.vocab, game_names),
-                    DateMatcherReplacementRule(nlp.vocab)
+                    DateMatcherReplacementRule(nlp.vocab),
+                    PlayerCountReplacementRule(nlp.vocab),
+                    NumberMatcherReplacementRule(nlp.vocab),
                 ]),
-                ShortTextFilterRule(min_words_in_sentence=3),
+                # The longer the sentence the higher the context information that it should provide.
+                ShortTextFilterRule(min_words_in_sentence=8),
                 ListToTextRegenerationRule(),
                 # DateRemoverRule(), This is way too slow!
             ],
@@ -394,3 +416,16 @@ class DatasetGeneration:
     def __iter__(self):
         # For a rapid unpacking of the object
         return iter((self.pipeline, self.target_size, self.sampler))
+
+
+if __name__ == "__main__":
+    nlp = spacy.load("en_core_web_md")
+    lm = LemmatizeTextWithMatcherRules(rules=[
+        DateMatcherReplacementRule(nlp.vocab),
+        PlayerCountReplacementRule(nlp.vocab),
+    ])
+
+    print(lm.process("This is a 4p game"))
+    print(lm.process("This is a 2-4p game"))
+    print(lm.process("This is a 21/4p game"))
+    print(lm.process("This is a 2-3-4p game"))

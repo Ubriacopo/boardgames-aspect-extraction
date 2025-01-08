@@ -1,9 +1,8 @@
-import argparse
 import torch
 from gensim import corpora
 from gensim.models import CoherenceModel
 
-
+# todo check
 def normalize(matrix: torch.tensor) -> torch.tensor:
     return matrix / torch.linalg.norm(matrix, dim=-1, keepdim=True)
 
@@ -44,12 +43,3 @@ def coherence_per_aspect(aspects: list[list], text_dataset: list[str], topn=2) -
     corpus = [dictionary.doc2bow(doc.split(" "), allow_update=True) for doc in text_dataset]
     coh_model = CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=topn)
     return coh_model.get_coherence_per_topic(), coh_model
-
-
-# Main run script. TODO
-if __name__ == "__main__":
-    # todo pass args
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-o", "--out-dir", dest="out_dir_path", type=str, metavar='<str>', required=True,
-                        help="The path to the output directory")
-    args = parser.parse_args()

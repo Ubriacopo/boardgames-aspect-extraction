@@ -1,10 +1,18 @@
 What should I do next?
 
->https://seunghan96.github.io/nlp/absa/ABAE/ 
+> https://seunghan96.github.io/nlp/absa/ABAE/
+
+todo vedi qui
+> For the ABAE model, we initialize the word
+> embedding matrix E with word vectors trained by
+> word2vec with negative sampling on each dataset,
+> setting the embedding size to 200, window size to
+> 10, and negative sample size to 5.
 
 # Plan: Next steps...
+
 -[X] Sistema lower che a quanto pare non viene usato! (AP e ap sono parole distinte!)
-MEGA IMPORTANTE TODO
+ MEGA IMPORTANTE TODO
 -[X] Drop il longest sampler. Lasciamo perdere.
 
 
@@ -13,8 +21,12 @@ MEGA IMPORTANTE TODO
 -[x] Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
 -[x] Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
 
+-[ ] Generation of a validation set for parameter tuning (hold out ds)
+    - Per LDA solo topic number stiamo su standard values
+-[ ] Mini dataset (1k rows o 500 rows) per fare testing vero e proprio
+
 -[ ] Metric to measure to make early stopping: look at model.ipynb
-  - Best bets are: Perplexity and Coherence Score -> Using k-fold cv 
+    - Best bets are: Perplexity and Coherence Score -> Using k-fold cv
 
 ### 2 - Begin writing the report
 

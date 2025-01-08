@@ -1,5 +1,5 @@
 import torch
-
+import math
 from keras import Layer
 from keras import backend as B
 from keras import constraints
@@ -7,66 +7,42 @@ from keras import initializers
 from keras import ops as K
 from keras import regularizers
 
-# todo fix size passed in wrong place warning
-# todo get rid of unused regularizers
+
 class Attention(Layer):
 
-    def __init__(self, W_regularizer=None, b_regularizer=None, W_constraint=None,
-                 b_constraint=None, bias=True, **kwargs):
+    def __init__(self, bias: bool = True, **kwargs):
         """
-        TODO: Studia bene
-        Keras Layer that implements a Content Attention mechanism.
-        Supports Masking.
-
-        @param W_regularizer:
-        @param b_regularizer:
-        @param W_constraint:
-        @param b_constraint:
+        Keras Layer that implements a Content Attention mechanism. Supports Masking.
         @param bias:
         @param kwargs:
         """
-        self.b = None
-        self.W = None
-        self.steps = None
-
         self.supports_masking = True
-        self.init = initializers.get('glorot_uniform')
 
-        self.W_regularization = regularizers.get(W_regularizer)
-        self.b_regularization = regularizers.get(b_regularizer)
-        self.W_constraint = constraints.get(W_constraint)
-        self.b_constraint = constraints.get(b_constraint)
+        self.b = None
+        self.w = None
+        self.steps = None
 
         self.bias = bias
         super(Attention, self).__init__(**kwargs)
 
     def build(self, input_shape):
+        # Check that the input is good for us
         assert list == type(input_shape)
         assert len(input_shape) == 2
-
         self.steps = input_shape[0][1]
 
-        self.W = self.add_weight(
-            shape=(input_shape[0][-1], input_shape[1][-1]), initializer=self.init,
-            name='{}_W'.format(self.name), regularizer=self.W_regularization, constraint=self.W_constraint
-        )
-
-        self.b = self.add_weight(
-            shape=(1,), initializer='zero', name='{}_b'.format(self.name),
-            regularizer=self.b_regularization, constraint=self.b_constraint
-        ) if self.bias else None
-
-        self.built = True
+        self.w = self.add_weight(name='{}_W'.format(self.name), shape=(input_shape[0][-1], input_shape[1][-1]))
+        self.b = self.add_weight(name='{}_b'.format(self.name), shape=(1,), initializer="zero") if self.bias else None
+        super(Attention, self).build(input_shape)
 
     def compute_mask(self, input_tensor, mask=None):
         return None
 
     def call(self, input_tensor, mask=None):
         x, y = input_tensor
-
         mask = mask[0]
 
-        y = K.transpose(K.dot(self.W, K.transpose(y)))
+        y = K.transpose(K.dot(self.w, K.transpose(y)))
         y = K.repeat(K.expand_dims(y, axis=-2), self.steps, axis=1)
 
         eij = K.sum(x * y, axis=-1)
@@ -102,54 +78,38 @@ class WeightedSum(Layer):
 
 class WeightedAspectEmb(Layer):
 
-    def __init__(self, input_dim, output_dim, init='uniform', input_length=None, W_regularization=None,
-                 activity_regularization=None, W_constraint=None, weights=None, dropout=0., **kwargs):
-
-        self.W = None
-
-        # todo check warning of init. Input dim should be only given at runtime from call?
-        self.input_dim = input_dim
-        self.embedding_size = output_dim
-
-        self.init = initializers.get(init)
-        self.input_length = input_length
+    def __init__(self, embedding_size: int, weights=None, w_regularization=None, dropout=0., **kwargs):
+        self.w = None
         self.dropout = dropout
 
-        self.W_constraint = constraints.get(W_constraint)
-        self.W_regularization = regularizers.get(W_regularization)
-        self.activity_regularization = regularizers.get(activity_regularization)
+        self.embedding_size = embedding_size
+        self.W_regularization = w_regularization
 
         if 0. < self.dropout < 1.:
             self.uses_learning_phase = True
+
         self.initial_weights = weights
-        kwargs['input_shape'] = (self.input_length,)
         super(WeightedAspectEmb, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        self.W = self.add_weight(
-            shape=(self.input_dim, self.embedding_size), initializer=self.init,
-            name='{}_W'.format(self.name), regularizer=self.W_regularization, constraint=self.W_constraint
-        )
+        w_shape = (input_shape[1], self.embedding_size)
+        w_name = self.name + '_W'
+        self.w = self.add_weight(name=w_name, shape=w_shape, initializer="uniform", regularizer=self.W_regularization)
 
         # Use the weights generated as a starting point if provided
         if self.initial_weights is not None:
             self.set_weights([self.initial_weights])
-
-        self.built = True
+        super(WeightedAspectEmb, self).build(input_shape)
 
     def compute_mask(self, x, mask=None):
         return None
 
     def call(self, x, mask=None):
-        return K.dot(x, self.W)
-
-    def compute_output_shape(self, input_shape):
-        return input_shape[0], self.embedding_size
+        return K.dot(x, self.w)
 
     def get_config(self):
         config = super(WeightedAspectEmb, self).get_config()
-        config["input_dim"] = self.input_dim
-        config["output_dim"] = self.embedding_size
+        config["embedding_size"] = self.embedding_size
         return config
 
     @classmethod
@@ -157,6 +117,9 @@ class WeightedAspectEmb(Layer):
         input_dim, output_dim = config["input_dim"], config["output_dim"]
         del config["input_dim"], config["output_dim"]
         return cls(input_dim, output_dim, **config)
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0], self.embedding_size
 
 
 class Average(Layer):
@@ -195,19 +158,23 @@ class MaxMargin(Layer):
         @param mask: Masking. Won't be used therefore we do not support it in this layer.
         @return: The MaxMargin loss given on the positive and negative embeddings projection on the aspects
         """
-        positive_e = torch.nn.functional.normalize(input_tensor[0], p=2, dim=-1)
-        negative_e = torch.nn.functional.normalize(input_tensor[1], p=2, dim=-1)
-        aspect_e = torch.nn.functional.normalize(input_tensor[2], p=2, dim=-1)
+        sentence_embedding = torch.nn.functional.normalize(input_tensor[0], p=2, dim=-1)
+        negative_sample = torch.nn.functional.normalize(input_tensor[1], p=2, dim=-1)
+        reconstruction_embedding = torch.nn.functional.normalize(input_tensor[2], p=2, dim=-1)
 
-        positive = K.sum(positive_e * aspect_e, axis=-1, keepdims=True)
+        # Sometimes "nan". I suppose there might be a problem with Epsilon taken from backend!
+        # sentence_embedding = K.normalize(input_tensor[0], order=2, axis=-1)
+        # negative_sample = K.normalize(input_tensor[1], order=2, axis=-1)
+        # reconstruction_embedding = K.normalize(input_tensor[2], order=2, axis=-1)
+
+        positive = K.sum(sentence_embedding * reconstruction_embedding, axis=-1, keepdims=True)
         # We repeat for all the generated entries of the negative sample
-        positive = K.repeat(positive, negative_e.shape[1], axis=1)
+        positive = K.repeat(positive, negative_sample.shape[1], axis=-1)
 
-        expanded_aspect_e = K.expand_dims(aspect_e, axis=-2)
-        expanded_aspect_e = K.repeat(expanded_aspect_e, negative_e.shape[1], axis=1)
+        reconstruction_embedding = K.expand_dims(reconstruction_embedding, axis=-2)
+        reconstruction_embedding = K.repeat(reconstruction_embedding, negative_sample.shape[1], axis=1)
 
-        negative = K.sum(negative_e * expanded_aspect_e, axis=-1)
-
+        negative = K.sum(negative_sample * reconstruction_embedding, axis=-1)
         return K.cast(K.sum(K.maximum(0., (1. - positive + negative)), axis=-1, keepdims=True), B.floatx())
 
     def compute_mask(self, input_tensor, mask=None):

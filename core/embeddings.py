@@ -4,11 +4,14 @@ from pathlib import Path
 import swifter
 import gensim.models
 import keras
+from keras.src.regularizers import OrthogonalRegularizer
 from sklearn.cluster import KMeans
 from keras import ops as K
 import core.layer
+from core.layer import WeightedAspectEmb
 
 
+# todo review
 class Embedding(ABC):
     """
     We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
@@ -151,9 +154,13 @@ class AspectEmbedding(Embedding):
             # noinspection PyTypeChecker
             pickle.dump(self.model, open(f"{self.target_path}/{self.name}.model", "wb"))
 
+    def load_layer_regularization(self):
+        pass  # TODO maybe later
+
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        return core.layer.WeightedAspectEmb(input_dim=self.aspect_size, output_dim=self.embedding_size,
-                                            weights=self.weights())
+        # todo pass factor
+        return WeightedAspectEmb(embedding_size=self.embedding_size, weights=self.weights(),
+                                 name=layer_name, w_regularization=OrthogonalRegularizer(factor=0.1))
 
     def weights(self):
         if self.model is None:
