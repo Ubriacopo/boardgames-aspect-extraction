@@ -22,7 +22,7 @@ if __name__ == "__main__":
     )
 
     manager = AbaeModelManager(config)
-    inference_model = manager.prepare_evaluation_model()
+    inference_model = manager.__prepare_evaluation_model()
 
     word_emb = normalize(inference_model.get_layer('word_embedding').weights[0].value.data)
     aspect_embeddings = normalize(inference_model.get_layer('weighted_aspect_emb').W)

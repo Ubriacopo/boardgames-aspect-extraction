@@ -39,7 +39,7 @@ for i in range(configurations):
     )
 
     train_dataloader = DataLoader(dataset=ds, batch_size=config.batch_size, shuffle=True)
-    iteration_model = manager.prepare_training_model()
+    iteration_model = manager.__prepare_training_model()
     iteration_model.fit(train_dataloader, epochs=config.epochs)
 
     # Evaluate the model

@@ -114,9 +114,9 @@ class WeightedAspectEmb(Layer):
 
     @classmethod
     def from_config(cls, config):
-        input_dim, output_dim = config["input_dim"], config["output_dim"]
-        del config["input_dim"], config["output_dim"]
-        return cls(input_dim, output_dim, **config)
+        embedding_size = config["embedding_size"]
+        del config["embedding_size"]
+        return cls(embedding_size, **config)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0], self.embedding_size

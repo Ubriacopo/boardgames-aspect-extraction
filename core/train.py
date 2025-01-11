@@ -3,6 +3,13 @@ import argparse
 from dataclasses import dataclass
 from pathlib import Path
 
+import keras
+from keras import Optimizer
+from keras.src.callbacks import LearningRateScheduler, ModelCheckpoint
+from keras.src.optimizers.schedules import CosineDecay, ExponentialDecay
+from torch.utils.data import DataLoader, Dataset
+
+from core.dataset import BaseBoardgameDataset
 from core.utils import max_margin_loss
 from core.embeddings import WordEmbedding, AspectEmbedding
 from core.model import ABAEGenerator, ModelGenerator
@@ -19,7 +26,6 @@ class AbaeModelConfiguration:
           model_name: str Name of model
           max_vocab_size: Maximum size of the vocabulary.
           embedding_size: Size of the word embeddings.
-          aspect_embedding_size: Size of the aspect embeddings.
           aspect_size: Number of aspects.
           max_sequence_length: Maximum length of the input sequences.
           negative_sample_size: Number of negative samples.
@@ -31,6 +37,10 @@ class AbaeModelConfiguration:
     aspect_size: int = 16
     max_vocab_size: int = None
     embedding_size: int = 200
+
+    learning_rate: float = 0.01
+    decay_rate: float = 0.95
+    momentum: float = 0.9
 
     max_sequence_length: int = 80
     negative_sample_size: int = 15
@@ -53,46 +63,82 @@ class AbaeModelManager:
         # Load the Embeddings
         self.embedding_model: WordEmbedding | None = None
         self.aspect_model: AspectEmbedding | None = None
-
-        self.__load_embeddings(override_existing)
-
-        self.model_generator: ModelGenerator = ABAEGenerator(
-            self.config.max_sequence_length, self.config.negative_sample_size, self.embedding_model, self.aspect_model
-        )
-
+        self.model_generator: ModelGenerator | None = None
         # The training model instance.
         self._t_model = None
         self._ev_model = None
 
-    def __load_embeddings(self, override_existing: bool):
-        c = self.config  # To make it more readable.
+        self.load_embeddings(corpus_file=config.corpus_file, override_existing=override_existing)
+
+    def load_embeddings(self, corpus_file: str = None, persist: bool = True, override_existing: bool = False):
+        """
+
+        @param corpus_file:
+        @param persist:
+        @param override_existing:
+        @return:
+        """
         keep = not override_existing
 
         load_utility = LoadCorpusUtility(column_name="comments")
+        corpus = load_utility.load_data(corpus_file if corpus_file is not None else self.config.corpus_file)
 
-        self.embedding_model = WordEmbedding(c.embedding_size, self.output_path, max_vocab_size=c.max_vocab_size)
-        self.embedding_model.generate(corpus=load_utility.load_data(c.corpus_file), sg=True, load_existing=keep)
+        self.embedding_model = WordEmbedding(
+            self.config.embedding_size, self.output_path, max_vocab_size=self.config.max_vocab_size
+        )
+        self.embedding_model.generate(corpus=corpus, sg=True, persist=persist, load_existing=keep)
 
-        self.aspect_model = AspectEmbedding(c.aspect_size, c.embedding_size, self.output_path)
-        self.aspect_model.generate(embedding_weights=self.embedding_model.weights(), load_existing=keep)
+        self.aspect_model = AspectEmbedding(self.config.aspect_size, self.config.embedding_size, self.output_path)
 
-    def override_model_generator(self, generator: ModelGenerator):
-        self.model_generator = generator
+        emb_weights = self.embedding_model.weights()
+        self.aspect_model.generate(embedding_weights=emb_weights, persist=persist, load_existing=keep)
 
-    def prepare_evaluation_model(self):
-        model_file_path = f"{self.output_path}/{self.config.model_name}.keras"
-        self._ev_model = self.model_generator.make_model(model_file_path)
-        return self._ev_model
+        # Now we can initialize the model generator.
+        self.model_generator: ModelGenerator = ABAEGenerator(
+            self.config.max_sequence_length, self.config.negative_sample_size, self.embedding_model, self.aspect_model
+        )
 
-    def prepare_training_model(self, consider_stored: bool = False, optimizer: str = 'SGD'):
-        considered_path = f"{self.output_path}/{self.config.model_name}.keras" if consider_stored else None
-        self._t_model = self.model_generator.make_training_model(considered_path)
+        # Reset the models. We had an override of the embeddings!
+        self._t_model = None
+        self._ev_model = None
+
+    def run_train_process(self, dataset: BaseBoardgameDataset,
+                          consider_stored: bool = False, optimizer: str | Optimizer = None):
+
+        considered_path = f"{self.output_path}/{self.config.model_name}.keras"
+        self._t_model = self.model_generator.make_training_model(considered_path if consider_stored else None)
+
+        # We leave the choice of the optimizer open in case, but we will probably use this.
+        if optimizer is None:
+            steps_per_epoch = len(dataset) / self.config.batch_size
+            total_steps = self.config.epochs * steps_per_epoch
+
+            # Why SGD? Well there are reasons! Check the paper I put in the notes to see.
+            optimizer = keras.optimizers.SGD(
+                learning_rate=ExponentialDecay(
+                    initial_learning_rate=self.config.learning_rate,
+                    # I guess that by bounding this we learn the best configuration with this assumption.
+                    decay_steps=.1 * total_steps,  # Every 10% of training process we reduce the learning rate,
+                    decay_rate=self.config.decay_rate
+                ),
+                momentum=self.config.momentum
+            )
+
         self._t_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
-        return self._t_model
+        train_dataloader = DataLoader(dataset=dataset, batch_size=self.config.batch_size, shuffle=True)
 
-    def persist_model(self):
-        if self._t_model is not None:
-            self._t_model.save(f"{self.output_path}/{self.config.model_name}.keras")
+        # Now run the training process and return the process history.
+        history = self._t_model.fit(train_dataloader, epochs=self.config.epochs, verbose=1, callbacks=[
+            # Every epoch the model is persisted on the FS.
+            ModelCheckpoint(filepath=f"./tmp/ckpt/{self.config.model_name}.keras", monitor='max_margin')
+        ])
 
-    def prepare_model(self, train: bool = False):
-        return self.prepare_training_model() if train else self.prepare_evaluation_model()
+        self._t_model.save(considered_path)
+        return history, self.model_generator.make_model(considered_path)
+
+    def get_evaluation_model(self):
+        if self._ev_model is None:
+            model_file_path = f"{self.output_path}/{self.config.model_name}.keras"
+            self._ev_model = self.model_generator.make_model(model_file_path)
+
+        return self._ev_model

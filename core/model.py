@@ -18,8 +18,7 @@ class ModelGenerator:
     def make_model(self, existing_model_path: str = None):
         if existing_model_path is not None:
             return keras.models.load_model(existing_model_path)
-        inputs, outputs = self.make_layers()
-        return keras.Model(inputs=inputs, outputs=outputs)
+        raise "Built evaluation model would be a blank model which I don't believe you want!"
 
 
 class ABAEGenerator(ModelGenerator):

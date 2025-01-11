@@ -24,7 +24,7 @@ todo vedi qui
 -[ ] Generation of a validation set for parameter tuning (hold out ds)
     - Per LDA solo topic number stiamo su standard values
 -[ ] Mini dataset (1k rows o 500 rows) per fare testing vero e proprio
-
+-[ ] Fai function e butta gli script. Sono scomodi e non mi piacciono.
 -[ ] Metric to measure to make early stopping: look at model.ipynb
     - Best bets are: Perplexity and Coherence Score -> Using k-fold cv
 

@@ -5,6 +5,7 @@ from core.dataset import PositiveNegativeCommentGeneratorDataset
 
 from torch.utils.data import DataLoader
 
+# todo fai function e butta gli script. Sono scomodi e non mi piacciono.
 if __name__ == "__main__":
     # os.environ['KERAS_BACKEND'] = "torch"
     p = argparse.ArgumentParser()
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     print(config)
 
     manager = AbaeModelManager(config)
-    train_model = manager.prepare_training_model('adam')
+    train_model = manager.__prepare_training_model('adam')
     train_dataset = PositiveNegativeCommentGeneratorDataset(
         vocabulary=manager.embedding_model.vocabulary(),
         csv_dataset_path=config.corpus_file, negative_size=15
@@ -43,5 +44,3 @@ if __name__ == "__main__":
 
     train_dataloader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     train_model.fit(train_dataloader, epochs=config.epochs)
-
-    manager.persist_model()
