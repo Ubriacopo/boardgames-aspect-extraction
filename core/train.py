@@ -114,6 +114,7 @@ class AbaeModelManager:
             total_steps = self.config.epochs * steps_per_epoch
 
             # Why SGD? Well there are reasons! Check the paper I put in the notes to see.
+            # SGD has fewer Hyperparameters and also better generalizes in most cases.
             optimizer = keras.optimizers.SGD(
                 learning_rate=ExponentialDecay(
                     initial_learning_rate=self.config.learning_rate,
@@ -128,7 +129,7 @@ class AbaeModelManager:
         train_dataloader = DataLoader(dataset=dataset, batch_size=self.config.batch_size, shuffle=True)
 
         # Now run the training process and return the process history.
-        history = self._t_model.fit(train_dataloader, epochs=self.config.epochs, verbose=1, callbacks=[
+        history = self._t_model.fit(train_dataloader, epochs=1, verbose=2, callbacks=[
             # Every epoch the model is persisted on the FS.
             ModelCheckpoint(filepath=f"./tmp/ckpt/{self.config.model_name}.keras", monitor='max_margin')
         ])

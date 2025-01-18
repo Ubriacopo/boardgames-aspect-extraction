@@ -3,16 +3,12 @@ from __future__ import annotations
 from abc import abstractmethod, ABC
 from random import Random
 
+import numpy as np
+
 """
-    I feel like this goes out of the scope of the project.
-    The approach is what is to be considered and not the results.
-    
-    While the idea to tune the parameters is a real work case scenario it is very
-    time consuming. I will leave this here but probably won't dive too deep into
-    parameter tuning and just use some default good enough values based on other studies.
-    
-    I still have made the experience on  hp tuning at the Statistical Methods for ML course.
-    todo: Decidi se procedere comunque.
+    While the need to tune the parameters is a problem in real work case scenario it is very time consuming. 
+    I will test out some configurations but won't dive too deep into parameter tuning and just use some good enough
+    values that we found based on other tuning process.
 """
 
 
@@ -96,8 +92,13 @@ class ABAERandomHyperparametersSelectionWrapper:
             .__add_parameter("batch_size", RandomTunableDiscreteParameter(
                 [32, 64, 128], seed=seed if type(seed) is int else seed.randint(0, max_rand_int)
             ))
-            .__add_parameter("learning_rate", RandomTunableSteppedParameter(
-                0.001, 0.1, 5, multiply=True, seed=seed if type(seed) is int else seed.randint(0, max_rand_int)
+            # A good heuristic for tuning learning rates is to use a logarithmic scale rather than a linear step between
+            # the minimum and maximum values. Thus, we use a stepped learning rate selector.
+            # .__add_parameter("learning_rate", RandomTunableSteppedParameter(
+            #     0.001, 0.1, 5, multiply=True, seed=seed if type(seed) is int else seed.randint(0, max_rand_int)
+            # ))
+            .__add_parameter("learning_rate", RandomTunableDiscreteParameter(
+                np.logspace(-4, -1, 5).tolist(), seed=seed if type(seed) is int else seed.randint(0, max_rand_int)
             ))
             # We want to use a learning rate scheduler.
             .__add_parameter("decay_rate", RandomTunableSteppedParameter(

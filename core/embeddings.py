@@ -7,7 +7,7 @@ import keras
 from keras.src.regularizers import OrthogonalRegularizer
 from sklearn.cluster import KMeans
 from keras import ops as K
-import core.layer
+
 from core.layer import WeightedAspectEmb
 
 
