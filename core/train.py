@@ -1,19 +1,17 @@
-import argparse
-
 from dataclasses import dataclass
 from pathlib import Path
 
 import keras
 from keras import Optimizer
-from keras.src.callbacks import LearningRateScheduler, ModelCheckpoint
-from keras.src.optimizers.schedules import CosineDecay, ExponentialDecay
-from torch.utils.data import DataLoader, Dataset
+from keras.src.callbacks import ModelCheckpoint
+from keras.src.optimizers.schedules import ExponentialDecay
+from torch.utils.data import DataLoader
 
 from core.dataset import BaseBoardgameDataset
-from core.utils import max_margin_loss
 from core.embeddings import WordEmbedding, AspectEmbedding
 from core.model import ABAEGenerator, ModelGenerator
-from core.utils import LoadCorpusUtility
+from core.utils import LoadCorpusUtility, zero_loss
+from core.utils import max_margin_loss
 
 
 @dataclass
@@ -65,8 +63,8 @@ class AbaeModelManager:
         self.aspect_model: AspectEmbedding | None = None
         self.model_generator: ModelGenerator | None = None
         # The training model instance.
-        self._t_model = None
-        self._ev_model = None
+        self._t_model: keras.Model | None = None
+        self._ev_model: keras.Model | None = None
 
         self.load_embeddings(corpus_file=config.corpus_file, override_existing=override_existing)
 
@@ -100,13 +98,14 @@ class AbaeModelManager:
 
         # Reset the models. We had an override of the embeddings!
         self._t_model = None
-        self._ev_model = None
 
     def run_train_process(self, dataset: BaseBoardgameDataset,
                           consider_stored: bool = False, optimizer: str | Optimizer = None):
 
         considered_path = f"{self.output_path}/{self.config.model_name}.keras"
-        self._t_model = self.model_generator.make_training_model(considered_path if consider_stored else None)
+
+        # Get a trainable model structure.
+        self._t_model = self.model_generator.generate_model(considered_path if consider_stored else None)
 
         # We leave the choice of the optimizer open in case, but we will probably use this.
         if optimizer is None:
@@ -122,24 +121,31 @@ class AbaeModelManager:
                     decay_steps=.1 * total_steps,  # Every 10% of training process we reduce the learning rate,
                     decay_rate=self.config.decay_rate
                 ),
-                momentum=self.config.momentum
+                momentum=self.config.momentum,
             )
 
         self._t_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
         train_dataloader = DataLoader(dataset=dataset, batch_size=self.config.batch_size, shuffle=True)
 
         # Now run the training process and return the process history.
-        history = self._t_model.fit(train_dataloader, epochs=1, verbose=2, callbacks=[
-            # Every epoch the model is persisted on the FS.
+        history = self._t_model.fit(train_dataloader, epochs=self.config.epochs, verbose=1, callbacks=[
+            # Every epoch the model is persisted on the FS. (tmp)
             ModelCheckpoint(filepath=f"./tmp/ckpt/{self.config.model_name}.keras", monitor='max_margin')
         ])
 
+        # Persist the model to the work directory
         self._t_model.save(considered_path)
-        return history, self.model_generator.make_model(considered_path)
+        # Return history and re-initialize the ev_model
+        return history, self.get_model(force_refresh=True)
 
-    def get_evaluation_model(self):
-        if self._ev_model is None:
+    def get_model(self, force_refresh: bool = False):
+        """
+        You can only get a model if there has been a train procedure on it before!
+        @param force_refresh: If we want to force a refresh of the ev model
+        @return: A model instance if it exists on fs else it raises an exception.
+        """
+        if force_refresh is True or self._ev_model is None:
             model_file_path = f"{self.output_path}/{self.config.model_name}.keras"
-            self._ev_model = self.model_generator.make_model(model_file_path)
+            self._ev_model = self.model_generator.generate_model(model_file_path, False)
 
         return self._ev_model

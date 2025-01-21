@@ -12,13 +12,9 @@ class ModelGenerator:
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         pass
 
-    def make_training_model(self, existing_model_path: str = None):
-        return self.make_model(existing_model_path)
-
-    def make_model(self, existing_model_path: str = None):
-        if existing_model_path is not None:
-            return keras.models.load_model(existing_model_path)
-        raise "Built evaluation model would be a blank model which I don't believe you want!"
+    @abstractmethod
+    def generate_model(self, existing_model_path: str = None, is_train: bool = True) -> keras.Model:
+        pass
 
 
 class ABAEGenerator(ModelGenerator):
@@ -53,17 +49,23 @@ class ABAEGenerator(ModelGenerator):
         aspect_embeddings = self.aspect_emb_model.build_embedding_layer("aspect_embedding")(dense_layer)
 
         output = layer.MaxMargin(name="max_margin")([weighted_positive, neg_average, aspect_embeddings])
+
         # Model outputs: [Loss, AttentionWeights, AspectProbability]
         return [pos_input_layer, neg_input_layer], [output, att_weights, dense_layer]
 
-    def make_training_model(self, existing_model_path: str = None):
+    def generate_training_model(self, existing_model_path: str = None):
         if existing_model_path is not None:
             try:
-                model = keras.models.load_model(
-                    existing_model_path, custom_objects={'max_margin_loss': max_margin_loss}
+                custom_objects = {'max_margin_loss': max_margin_loss}
+                template_model = keras.models.load_model(existing_model_path, custom_objects=custom_objects)
+
+                model = keras.Model(inputs=template_model.inputs, outputs=template_model.outputs[0])
+                # Transfer properties of the template model.
+                model.compile(
+                    optimizer=template_model.optimizer, loss=template_model.loss, metrics=template_model.metrics
                 )
 
-                return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+                return model
 
             except Exception as error:
                 # We keep going and simply generate a new model if we fail in finding the one in the path provided
@@ -72,14 +74,25 @@ class ABAEGenerator(ModelGenerator):
         inputs, outputs = self.make_layers()
         return keras.Model(inputs=inputs, outputs=outputs[0])
 
-    def make_model(self, existing_model_path: str = None):
-        if existing_model_path is not None:
-            model = keras.models.load_model(existing_model_path, custom_objects={'max_margin_loss': max_margin_loss})
+    def generate_model(self, existing_model_path: str = None, is_train: bool = True) -> keras.Model:
+        if is_train:  # Give the training model on demand.
+            return self.generate_training_model(existing_model_path=existing_model_path)
 
-            if len(model.outputs) == 1:
-                outputs = [model.outputs[0], model.layers[3].output, model.layers[6].output]
-                return keras.Model(inputs=model.inputs, outputs=outputs)
+        if existing_model_path is None:
+            raise FileNotFoundError("Cannot load inference model from fs as it is missing")
+        # todo delegare a train parte di questo?
+        custom_objects = {'max_margin_loss': max_margin_loss}
+        template_model = keras.models.load_model(existing_model_path, custom_objects=custom_objects)
 
-            return keras.Model(inputs=model.inputs, outputs=model.outputs[0])
+        outputs = template_model.outputs
 
-        return super().make_model(None)
+        # If the previously stored model was a training model I have to build the correct new output shape.
+        if len(template_model.outputs) == 1:
+            outputs = [template_model.outputs[0], template_model.layers[3].output, template_model.layers[6].output]
+
+        model = keras.Model(inputs=template_model.inputs, outputs=outputs)
+        model.compile(
+            optimizer=template_model.optimizer, loss=template_model.loss, metrics={'max_margin': max_margin_loss}
+        )
+
+        return model

@@ -89,3 +89,7 @@ def max_margin_loss(y_true, y_pred):
     @return: The loss value.
     """
     return K.mean(y_pred, axis=-1)
+
+
+def zero_loss(y_true, y_pred):
+    return K.convert_to_tensor([0])
