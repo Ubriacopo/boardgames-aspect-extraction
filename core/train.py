@@ -128,7 +128,7 @@ class AbaeModelManager:
         train_dataloader = DataLoader(dataset=dataset, batch_size=self.config.batch_size, shuffle=True)
 
         # Now run the training process and return the process history.
-        history = self._t_model.fit(train_dataloader, epochs=self.config.epochs, verbose=1, callbacks=[
+        history = self._t_model.fit(train_dataloader, epochs=self.config.epochs, verbose=2, callbacks=[
             # Every epoch the model is persisted on the FS. (tmp)
             ModelCheckpoint(filepath=f"./tmp/ckpt/{self.config.model_name}.keras", monitor='max_margin')
         ])

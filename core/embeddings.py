@@ -122,7 +122,6 @@ class WordEmbedding(Embedding):
         """
         if self.model is None:
             self.load()  # Try to load the model if it exists!
-
         return self.model.wv.key_to_index
 
 

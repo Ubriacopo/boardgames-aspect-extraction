@@ -177,6 +177,7 @@ class HyperparameterTuningManager:
             tuning_process_result_list.append(self.__run_config(parameters, repeat))
 
         self.__store_seen_configurations()
+        return tuning_process_result_list
 
     def __load_previous_configurations(self):
         # If previous configs exist we read them.

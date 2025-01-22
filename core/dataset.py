@@ -3,6 +3,7 @@ from abc import abstractmethod
 import gensim
 import numpy as np
 import pandas as pd
+from gensim.models import Word2Vec
 from keras import preprocessing as pre
 from pandas import DataFrame
 from torch.utils.data import Dataset
@@ -23,7 +24,7 @@ class BaseBoardgameDataset(Dataset):
         @param max_seq_length: We set as a maximum 512 tokens for each sequence as it is a good standard.
         I would love to do
         """
-        super(PositiveNegativeCommentGeneratorDataset).__init__()
+        super().__init__()
         self.vocabulary: dict = vocabulary
         self.dataset = dataset
 
@@ -90,6 +91,32 @@ class EmbeddingsDataset(BaseBoardgameDataset):
         dataset = pd.read_csv(csv_dataset_path)
         self.embeddings_model = embeddings_model
         super().__init__(dataset, embeddings_model.wv.key_to_index, max_seq_length)
+
+    def __getitem__(self, index: int):
+        return np.array(self.dataset.at[index])
+
+
+class SimpleEmbeddingsDataset(Dataset):
+    def generate_numeric_representation(self, entry):
+        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
+
+    def __init__(self, corpus: list, embeddings_model: Word2Vec, max_seq_length: int = 80):
+        self.vocabulary = embeddings_model.wv.key_to_index
+        self.dataset = list(map(lambda x: self.generate_numeric_representation(x.split(' ')), corpus))
+        self.dataset = pre.sequence.pad_sequences(self.dataset, maxlen=max_seq_length).tolist()
+
+    def __getitem__(self, index: int):
+        return [np.array(self.dataset[index]), []], 0
+
+    def __len__(self):
+        return len(self.dataset) - 1
+
+
+class TokenizedDataset(BaseBoardgameDataset):
+    def __init__(self, csv_dataset_path: str, vocabulary: dict, max_seq_length: int = 80):
+        dataset = pd.read_csv(csv_dataset_path)
+        super().__init__(dataset, vocabulary, max_seq_length)
 
     def __getitem__(self, index: int):
         return np.array(self.dataset.at[index])

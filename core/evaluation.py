@@ -2,6 +2,7 @@ import torch
 from gensim import corpora
 from gensim.models import CoherenceModel
 
+
 # todo check
 def normalize(matrix: torch.tensor) -> torch.tensor:
     return matrix / torch.linalg.norm(matrix, dim=-1, keepdim=True)
@@ -42,4 +43,12 @@ def coherence_per_aspect(aspects: list[list], text_dataset: list[str], topn=2) -
     # Gensim wants the corpus in BOW format:
     corpus = [dictionary.doc2bow(doc.split(" "), allow_update=True) for doc in text_dataset]
     coh_model = CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=topn)
+    return coh_model.get_coherence_per_topic(), coh_model
+
+
+def coherence_model_generation(aspects: list[list], ds, dictionary, topn=10):
+    if topn > len(aspects[0]):
+        raise "I cannot take top n that is over the number of top words provided!"
+
+    coh_model = CoherenceModel(topics=aspects, dictionary=dictionary, texts=ds, coherence='c_npmi', topn=topn)
     return coh_model.get_coherence_per_topic(), coh_model
