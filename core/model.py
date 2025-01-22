@@ -26,6 +26,7 @@ class ABAEGenerator(ModelGenerator):
         self.emb_model = embeddings_model
         self.aspect_emb_model = aspect_embeddings_model
 
+    # todo rename to train layers
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
         positive_input_shape = (self.max_seq_length,)  # 512
         negative_input_shape = (self.negative_length, self.max_seq_length)
@@ -53,6 +54,9 @@ class ABAEGenerator(ModelGenerator):
         # Model outputs: [Loss, AttentionWeights, AspectProbability]
         return [pos_input_layer, neg_input_layer], [output, att_weights, dense_layer]
 
+    def make_evaluation_layer(self) -> keras.Model:
+        pass  # todo
+
     def generate_training_model(self, existing_model_path: str = None):
         if existing_model_path is not None:
             try:
@@ -74,6 +78,8 @@ class ABAEGenerator(ModelGenerator):
         inputs, outputs = self.make_layers()
         return keras.Model(inputs=inputs, outputs=outputs[0])
 
+
+    # todo non mi servira piu visto che i due modelli vengono costruiti diversamente probabilmente
     def generate_model(self, existing_model_path: str = None, is_train: bool = True) -> keras.Model:
         if is_train:  # Give the training model on demand.
             return self.generate_training_model(existing_model_path=existing_model_path)
