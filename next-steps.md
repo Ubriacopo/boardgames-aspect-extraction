@@ -20,10 +20,12 @@ todo vedi qui
 
 -[x] Dividi recensioni con sentence parser e tienile. VEdI SE RIESCI IN PREPROCESSING o magari in sampler.
 -[x] Aggiungi un altro ShortTextFilterRule() a valle per rimuovere testi con sole 5 parole
-
+-[ ] Prova con un dataset MENO frammentato (lunghezza minima di fai 80 prima di split?)
+    - Splitting probabilmente ora non va benisimo
 -[ ] Generation of a validation set for parameter tuning (hold out ds)
     - Per LDA solo topic number stiamo su standard values
 -[ ] Mini dataset (1k rows o 500 rows) per fare testing vero e proprio
+
 -[ ] Fai function e butta gli script. Sono scomodi e non mi piacciono.
 -[ ] Metric to measure to make early stopping: look at model.ipynb
     - Best bets are: Perplexity and Coherence Score -> Using k-fold cv

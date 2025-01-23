@@ -11,7 +11,7 @@ from keras import ops as K
 from core.layer import WeightedAspectEmb
 
 
-# todo review
+# todo review -> riumupovi metodo keras
 class Embedding(ABC):
     """
     We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
@@ -104,6 +104,9 @@ class WordEmbedding(Embedding):
 
         return self.model.wv.vectors
 
+    def actual_vocab_size(self) -> int:
+        return len(self.model.wv.key_to_index)
+
     def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
         if self.model is None:
             self.load()  # Try to load the model if it exists!
@@ -124,6 +127,12 @@ class WordEmbedding(Embedding):
             self.load()  # Try to load the model if it exists!
         return self.model.wv.key_to_index
 
+    def id2word(self):
+        if self.model is None:
+            self.load()  # Try to load the model if it exists!
+
+        return self.model.wv.index2word
+
 
 class AspectEmbedding(Embedding):
     def __init__(self, aspect_size: int, embedding_size: int, target_path: str, name: str = "aspect-embeddings"):
@@ -138,7 +147,7 @@ class AspectEmbedding(Embedding):
         self.model = pickle.load(open(file_path, "rb"))
 
     def generate(self, embedding_weights, persist: bool = True, load_existing: bool = False):
-
+        # todo vedi se embedding weights sono passatti corretamente
         if load_existing:
             try:
                 return self.load()
@@ -146,7 +155,7 @@ class AspectEmbedding(Embedding):
             except Exception as e:
                 print(e)
 
-        self.model = KMeans(n_clusters=self.aspect_size)
+        self.model = KMeans(n_clusters=self.aspect_size, verbose=False)
         self.model.fit(embedding_weights)
 
         if persist:
@@ -164,8 +173,12 @@ class AspectEmbedding(Embedding):
     def weights(self):
         if self.model is None:
             self.load()
+        #    for k in w2v_model.wv.key_to_index:
+        #       m.append(w2v_model.wv[k])
 
-        # Default value for L2 regularize
+        # Default value for L2 regularize todo vedi se meglio cosi:
+        #     clusters = km.cluster_centers_
+        #     norm_aspect_matrix = clusters / np.linalg.norm(clusters, axis=-1, keepdims=True)
         regularize = keras.regularizers.L2(l2=0.01)
         return regularize(self.model.cluster_centers_) * K.convert_to_tensor(self.model.cluster_centers_)
 

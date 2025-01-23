@@ -96,23 +96,6 @@ class EmbeddingsDataset(BaseBoardgameDataset):
         return np.array(self.dataset.at[index])
 
 
-class SimpleEmbeddingsDataset(Dataset):
-    def generate_numeric_representation(self, entry):
-        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
-        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
-
-    def __init__(self, corpus: list, embeddings_model: Word2Vec, max_seq_length: int = 80):
-        self.vocabulary = embeddings_model.wv.key_to_index
-        self.dataset = list(map(lambda x: self.generate_numeric_representation(x.split(' ')), corpus))
-        self.dataset = pre.sequence.pad_sequences(self.dataset, maxlen=max_seq_length).tolist()
-
-    def __getitem__(self, index: int):
-        return [np.array(self.dataset[index]), []], 0
-
-    def __len__(self):
-        return len(self.dataset) - 1
-
-
 class TokenizedDataset(BaseBoardgameDataset):
     def __init__(self, csv_dataset_path: str, vocabulary: dict, max_seq_length: int = 80):
         dataset = pd.read_csv(csv_dataset_path)
@@ -120,3 +103,94 @@ class TokenizedDataset(BaseBoardgameDataset):
 
     def __getitem__(self, index: int):
         return np.array(self.dataset.at[index])
+
+
+# Label-less ds
+class SimpleWord2VecEmbeddingsDataset(Dataset):
+    def generate_numeric_representation(self, entry):
+        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
+
+    def __init__(self, corpus: list, embeddings_model: Word2Vec, max_seq_length: int = 80):
+        self.vocabulary = embeddings_model.wv.key_to_index
+
+        ds = map(lambda x: self.generate_numeric_representation(x.split(' ')), corpus)
+        max_found_length = len(max(ds, key=len))
+
+        self.dataset = pre.sequence.pad_sequences(ds, maxlen=min(max_found_length, max_seq_length)).tolist()
+        self.dataset = list(ds)
+
+    def __getitem__(self, index: int):
+        # Output: Point + Label
+        return np.array(self.dataset[index]), 0
+
+    def __len__(self):
+        return len(self.dataset) - 1
+
+
+class PositiveNegativeWord2VecEmbeddingsDataset(SimpleWord2VecEmbeddingsDataset):
+    def generate_numeric_representation(self, entry):
+        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
+
+    def __init__(self, corpus: list, embeddings_model: Word2Vec, negative_size: int, max_seq_length: int = 80):
+        self.negative_size = negative_size
+        super().__init__(corpus, embeddings_model, max_seq_length)
+
+    def __getitem__(self, item):
+        # todo: Vedi se è lento.
+        positive_sample = self.dataset[item]
+        indexes = filter(lambda x: x != item, np.random.choice(self.__len__(), self.negative_size + 1, replace=False))
+
+        negative_samples = [self.dataset[index] for index in list(indexes)[0:self.negative_size]]
+        return [np.array(positive_sample), np.array(negative_samples)], 0
+
+
+class PandasNumericTextDataset(Dataset):
+    def generate_numeric_representation(self, entry):
+        # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
+
+    def __init__(self, dataframe: DataFrame, vocabulary: dict, max_seq_length: int = 80):
+        self.vocabulary = vocabulary
+        self.ds = dataframe["comments"].switfter.appl(lambda x: self.generate_numeric_representation(x.split(' ')))
+
+        print("Max sequence length calculation in progress...")
+        max_found_length = self.ds.map(lambda x: len(x)).max()
+        print("Max sequence length is: ", max_found_length, f". The limit is set to {max_seq_length} tokens.")
+        with_lost_information = self.ds.map(lambda x: len(x) > max_seq_length).sum()
+
+        padding_size = min(max_found_length, max_seq_length)
+
+        if with_lost_information > 0:
+            print(f"We loose information on {with_lost_information} points."
+                  f"This is {with_lost_information / len(self.ds) * 100}% of the dataset.")
+        print(f"Padding sequences to length ({padding_size}).")
+        self.ds = pd.Series(pre.sequence.pad_sequences(self.ds, maxlen=padding_size).tolist())
+
+    def __getitem__(self, index: int):
+        return np.array(self.ds.at[index]), 0
+
+    def __len__(self):
+        return len(self.ds) - 1
+
+
+class PandasPositiveNegativeNumericTextDataset(PandasNumericTextDataset):
+    def __init__(self, dataframe: DataFrame, vocabulary: dict, negative_size: int, max_seq_length: int = 80):
+        self.negative_size = negative_size
+        super().__init__(dataframe, vocabulary, max_seq_length)
+
+    def __getitem__(self, index: int):
+        positive_sample = np.array(self.ds.at[index])
+        # No duplicates assure us that with +1 we get the correct amount
+        negative_samples = self.ds.sample(n=self.negative_size + 1)
+        negative_samples = negative_samples.drop(index=index)  # We drop the current element index
+
+        # Todo: Trasferisci comportamento su altri classi
+        if len(negative_samples) > self.negative_size:
+            # Drop a random element
+            index = negative_samples.index
+            negative_samples.drop(np.random.choice(index, 1))
+
+        negative_samples = np.stack(negative_samples.to_numpy())
+        return [positive_sample, negative_samples], 0
