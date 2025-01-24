@@ -153,7 +153,7 @@ class PandasNumericTextDataset(Dataset):
 
     def __init__(self, dataframe: DataFrame, vocabulary: dict, max_seq_length: int = 80):
         self.vocabulary = vocabulary
-        self.ds = dataframe["comments"].switfter.appl(lambda x: self.generate_numeric_representation(x.split(' ')))
+        self.ds = dataframe["comments"].swifter.apply(lambda x: self.generate_numeric_representation(x.split(' ')))
 
         print("Max sequence length calculation in progress...")
         max_found_length = self.ds.map(lambda x: len(x)).max()
@@ -184,13 +184,13 @@ class PandasPositiveNegativeNumericTextDataset(PandasNumericTextDataset):
         positive_sample = np.array(self.ds.at[index])
         # No duplicates assure us that with +1 we get the correct amount
         negative_samples = self.ds.sample(n=self.negative_size + 1)
-        negative_samples = negative_samples.drop(index=index)  # We drop the current element index
+        negative_samples = negative_samples.drop(index=index, errors='ignore')  # We drop the current element index
 
         # Todo: Trasferisci comportamento su altri classi
         if len(negative_samples) > self.negative_size:
             # Drop a random element
             index = negative_samples.index
-            negative_samples.drop(np.random.choice(index, 1))
+            negative_samples= negative_samples.drop(np.random.choice(index, 1))
 
         negative_samples = np.stack(negative_samples.to_numpy())
         return [positive_sample, negative_samples], 0

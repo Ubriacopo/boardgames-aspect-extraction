@@ -28,12 +28,11 @@ class ABAEGenerator(ModelGenerator):
         self.emb_model = embeddings_model
         self.aspect_emb_model = aspect_embeddings_model
 
-    # todo rename to train layers
+    # todo rename to train layers -> sistema su base di altro codice
     def make_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        positive_input_shape = (self.max_seq_length,)  # 512
-        negative_input_shape = (self.negative_length, self.max_seq_length)
+        pos_input_layer = keras.layers.Input(shape=(self.max_seq_length,), name='positive', dtype='int32')
 
-        pos_input_layer = keras.layers.Input(shape=positive_input_shape, name='positive', dtype='int32')
+        negative_input_shape = (self.negative_length, self.max_seq_length)
         neg_input_layer = keras.layers.Input(shape=negative_input_shape, name='negative', dtype='int32')
 
         emb_layer = self.emb_model.build_embedding_layer(layer_name="word_embedding")
@@ -113,10 +112,11 @@ class SelfAttention(keras.layers.Layer):
         self.w = None
 
     def build(self, input_shape):
-        self.w = self.add_weight(name='{}_W'.format(self.name), shape=(input_shape[0][-1], input_shape[1][-1]))
+        self.w = self.add_weight(name='{}_W'.format(self.name), shape=(input_shape[-1], input_shape[-1]))
 
     def call(self, embeddings):
-        mean_embeddings = K.mean(embeddings, (-1,)).unsqueeze(2)
+        # (b, wv, 1)
+        mean_embeddings = K.mean(embeddings, (1,)).unsqueeze(2)
         # (wv, wv) x (b, wv, 1) -> (b, wv, 1)
         p1 = K.matmul(self.w, mean_embeddings)
         # (b, maxlen, wv) x (b, wv, 1) -> (b, maxlen, 1)
@@ -124,7 +124,7 @@ class SelfAttention(keras.layers.Layer):
         return keras.activations.softmax(p2, axis=-1)
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0][0], input_shape[0][1]
+        return input_shape[1], 1
 
 
 class AspectEmbeddings(keras.layers.Layer):
@@ -140,16 +140,18 @@ class AspectEmbeddings(keras.layers.Layer):
         self.w = None
 
     def build(self, input_shape):
-        w_shape = (input_shape[1], self.embedding_size)
+        # w_shape = (self.embedding_size, input_shape[0]) # (aspect, wv)
+        w_shape = (self.embedding_size, input_shape[1])  # (wv, aspect)
         w_name = self.name + '_W'
         self.w = self.add_weight(name=w_name, shape=w_shape, initializer="uniform", regularizer=self.W_regularization)
 
         # Use the weights generated as a starting point if provided
         if self.initial_weights is not None:
-            self.set_weights([self.initial_weights])
+            self.set_weights([self.initial_weights.T])
         super(AspectEmbeddings, self).build(input_shape)
 
     def call(self, x, mask=None):
+        # (batch, wv, aspect_size) x (batch, wv, 1) -> (wv, 1)
         return K.matmul(self.w, x.unsqueeze(2)).squeeze()
 
     def get_config(self):
@@ -164,7 +166,7 @@ class AspectEmbeddings(keras.layers.Layer):
         return cls(embedding_size, **config)
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0], self.embedding_size
+        return input_shape[1], self.embedding_size
 
 
 class WeightLayer(keras.layers.Layer):
@@ -174,14 +176,16 @@ class WeightLayer(keras.layers.Layer):
 
     def call(self, x, mask=None):
         attention_weights, w_embeddings = x[0], x[1]
-        return K.matmul(attention_weights.unsqueezee(1), w_embeddings).squeeze()
+        # (batch, 1, max_length) x (batch, max_length, wv) -> 1 x wv
+        return K.matmul(attention_weights.unsqueeze(1), w_embeddings).squeeze()
 
     def compute_output_shape(self, input_shape):
-        return input_shape[0][0], input_shape[0][-1]
+        return 1, input_shape[1][-1]  # 80, 1
 
 
 class MaxMarginsLoss(keras.layers.Layer):
     def __init__(self, aspect_size: int, aspect_weights, ortho_reg: float = 0.1, **kwargs):
+        self.supports_masking = True
         super(MaxMarginsLoss, self).__init__(**kwargs)
         self.ortho_reg = ortho_reg
         self.aspect_size = aspect_size
@@ -191,9 +195,13 @@ class MaxMarginsLoss(keras.layers.Layer):
     def call(self, input_tensor, mask=None):
         positive_emb = input_tensor[0]
         reconstruction_emb = input_tensor[1]
-        averaged_negative_emb = input_tensor[2]
+        negative_emb = input_tensor[2]
 
+        averaged_negative_emb = K.mean(negative_emb, axis=2)
+
+        # (b, maxlen, wv) -> (b, 1, maxlen, wv) x (b, wv, 1) Tolgo unsqueeze(1)?
         positive_dot_products = K.matmul(positive_emb.unsqueeze(1), reconstruction_emb.unsqueeze(2)).squeeze()
+        #
         negative_dot_products = K.matmul(averaged_negative_emb, reconstruction_emb.unsqueeze(2)).squeeze()
 
         reconstruction_triplet_loss = K.sum(1 - positive_dot_products.unsqueeze(1) + negative_dot_products, dim=1)
@@ -234,8 +242,8 @@ class ABAE:
             input_dim=self.word_embeddings.actual_vocab_size(), output_dim=self.word_embeddings.embedding_size,
             weights=self.word_embeddings.weights(), trainable=False, name="word_embeddings", mask_zero=True
         )
+
         w_embeddings = word_embeddings_layer(pos_input_layer)
-        # TODO Vedi se qui sbaglio essendo shape diversa
         neg_w_embeddings = word_embeddings_layer(neg_input_layer)
 
         # Calculate self attention on the embeddings.
@@ -246,7 +254,7 @@ class ABAE:
         aspect_weight = Dense(units=self.aspect_size, activation="softmax")(weighted_embeddings)
 
         # Reconstruct input via embeddings. (Decoder)
-        aspect_embeddings_layer = AspectEmbeddings(weights=weights, embedding_size=self.aspect_size)
+        aspect_embeddings_layer = AspectEmbeddings(weights=weights, embedding_size=self.word_embeddings.embedding_size)
         decoded_embeddings = aspect_embeddings_layer(aspect_weight)
 
         # Evaluate loss (We measure how the reconstructed embedding relates to the correct element and differs from the
