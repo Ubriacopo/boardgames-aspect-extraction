@@ -1,17 +1,12 @@
 import pickle
 from abc import ABC, abstractmethod
 from pathlib import Path
-import swifter
+
 import gensim.models
-import keras
-from keras.src.regularizers import OrthogonalRegularizer
+import numpy as np
 from sklearn.cluster import KMeans
-from keras import ops as K
-
-from core.layer import WeightedAspectEmb
 
 
-# todo review -> riumupovi metodo keras
 class Embedding(ABC):
     """
     We construct a vector representation zs for each input sentence s in the first step. In general, we want the vector
@@ -23,16 +18,10 @@ class Embedding(ABC):
         self.name: str = name
         self.embedding_size: int = embedding_size
 
+        self.file_path = f"{self.target_path}/{self.name}.model"
+
     @abstractmethod
     def weights(self):
-        pass
-
-    @abstractmethod
-    def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        pass
-
-    @abstractmethod
-    def load(self):
         pass
 
     @abstractmethod
@@ -72,51 +61,47 @@ class WordEmbedding(Embedding):
         """
         super(WordEmbedding, self).__init__(embedding_size, target_path, name)
         self.model: gensim.models.Word2Vec | None = None  # None loaded by default.
+
         self.max_vocab_size: int = max_vocab_size
         self.min_word_count: int = min_word_count
 
-    def load(self):
-        file_path = f"{self.target_path}/{self.name}.keras"
-        if not Path(file_path).exists():
-            raise f"To read a model the model has to exist. File: {file_path} does not exist."
-        self.model = gensim.models.Word2Vec.load(str(Path(file_path)))
-
     def generate(self, corpus: list, persist: bool = True, sg: bool = True, load_existing: bool = False):
-        if load_existing:
-            try:
-                return self.load()
 
-            except Exception as e:
-                print(e)
+        if load_existing and Path(self.file_path).exists():
+            print(f"Loading the existing found model as requested in path {self.file_path}")
+            self.model = gensim.models.Word2Vec.load(str(Path(self.file_path)))
+            return
 
+        print("Creating new model")
         self.model = gensim.models.Word2Vec(
-            sentences=corpus, vector_size=self.embedding_size, workers=8,
+            sentences=corpus, vector_size=self.embedding_size,
             min_count=self.min_word_count, max_vocab_size=self.max_vocab_size, sg=sg
         )
 
-        # Persist
+        # Manual mapping of the pad token. It replaces the one at 0 position
+        # We have to handle this process because keras can only handle zero padding by its default implementation.
+        vec_values = np.zeros(self.embedding_size)
+        index = self.model.wv.add_vector("<PAD>", vec_values)
+        zero_token = self.model.wv.index_to_key[0]  # The most frequent element but we need that index!
+
+        # Swap the tokens + vectors
+        self.model.wv.index_to_key[0] = "<PAD>"
+        self.model.wv.index_to_key[index] = zero_token
+        self.model.wv.key_to_index["<PAD>"] = 0
+        self.model.wv.key_to_index[zero_token] = index
+        self.model.wv.vectors[index] = self.model.wv.vectors[0]
+        self.model.wv.vectors[0] = vec_values
+
         if persist:
-            self.model.save(f"{self.target_path}/{self.name}.keras")
+            self.model.save(self.file_path)
 
     def weights(self):
         if self.model is None:
-            self.load()  # Try to load the model if it exists!
-
+            raise 'You must first generate the model to get its vocabulary.'
         return self.model.wv.vectors
 
     def actual_vocab_size(self) -> int:
         return len(self.model.wv.key_to_index)
-
-    def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        if self.model is None:
-            self.load()  # Try to load the model if it exists!
-
-        actual_vocab_size = len(self.model.wv.key_to_index)
-
-        return keras.layers.Embedding(
-            input_dim=actual_vocab_size, output_dim=self.embedding_size,
-            weights=self.weights(), trainable=False, name=layer_name, mask_zero=True
-        )
 
     def vocabulary(self) -> dict:
         """
@@ -124,14 +109,8 @@ class WordEmbedding(Embedding):
         @return: object with keys-value pairs for text-int encoding
         """
         if self.model is None:
-            self.load()  # Try to load the model if it exists!
+            raise 'You must first generate the model to get its vocabulary.'
         return self.model.wv.key_to_index
-
-    def id2word(self):
-        if self.model is None:
-            self.load()  # Try to load the model if it exists!
-
-        return self.model.wv.index2word
 
 
 class AspectEmbedding(Embedding):
@@ -140,47 +119,25 @@ class AspectEmbedding(Embedding):
         self.model: KMeans | None = None
         self.aspect_size = aspect_size
 
-    def load(self):
-        file_path = f"{self.target_path}/{self.name}.model"
-        if not Path(file_path).exists():
-            raise f"To read a model the model has to exist. File: {file_path} does not exist."
-        self.model = pickle.load(open(file_path, "rb"))
-
     def generate(self, embedding_weights, persist: bool = True, load_existing: bool = False):
-        # todo vedi se embedding weights sono passatti corretamente
-        if load_existing:
-            try:
-                return self.load()
+        if load_existing and Path(self.file_path).exists():
+            print(f"Loading the existing found model as requested in path {self.file_path}")
+            self.model = pickle.load(open(self.file_path, "rb"))
+            return
 
-            except Exception as e:
-                print(e)
-
+        print("Creating new model")
         self.model = KMeans(n_clusters=self.aspect_size, verbose=False)
-        self.model.fit(embedding_weights)
+        self.model.fit(embedding_weights)  # todo controlla passato corretto
 
         if persist:
-            # noinspection PyTypeChecker
-            pickle.dump(self.model, open(f"{self.target_path}/{self.name}.model", "wb"))
-
-    def load_layer_regularization(self):
-        pass  # TODO maybe later
-
-    def build_embedding_layer(self, layer_name: str) -> keras.layers.Layer:
-        # todo pass factor
-        return WeightedAspectEmb(embedding_size=self.embedding_size, weights=self.weights(),
-                                 name=layer_name, w_regularization=OrthogonalRegularizer(factor=0.1))
+            pickle.dump(self.model, open(self.file_path, "wb"))
 
     def weights(self):
         if self.model is None:
-            self.load()
-        #    for k in w2v_model.wv.key_to_index:
-        #       m.append(w2v_model.wv[k])
+            raise 'You must first generate the model to get its weights.'
 
-        # Default value for L2 regularize todo vedi se meglio cosi:
-        #     clusters = km.cluster_centers_
-        #     norm_aspect_matrix = clusters / np.linalg.norm(clusters, axis=-1, keepdims=True)
-        regularize = keras.regularizers.L2(l2=0.01)
-        return regularize(self.model.cluster_centers_) * K.convert_to_tensor(self.model.cluster_centers_)
+        aspect_m = self.model.cluster_centers_ / np.linalg.norm(self.model.cluster_centers_, axis=-1, keepdims=True)
+        return aspect_m.astype("float32")
 
     def vocabulary(self):
         """
@@ -188,9 +145,5 @@ class AspectEmbedding(Embedding):
         calculate it or infer by hand the meaning, for now it simply is a number (its index).
         @return: The built vocabulary
         """
-        vocabulary = dict()
-
-        for i in range(self.aspect_size):
-            vocabulary[i] = i
-
-        return vocabulary
+        # These aspects have to be inferred manually.
+        return {value: value for value in range(self.aspect_size)}

@@ -6,7 +6,7 @@ from uuid import uuid4
 
 from core.evaluation import normalize, get_aspect_top_k_words, coherence_per_aspect
 from core.hp_tuning import ABAERandomHyperparametersSelectionWrapper
-from core.train import AbaeModelManager, AbaeModelConfiguration
+from core.train import ABAEModelManager, ABAEModelConfiguration
 from core.dataset import PositiveNegativeCommentGeneratorDataset
 
 from torch.utils.data import DataLoader
@@ -29,8 +29,8 @@ for i in range(configurations):
     seen_configurations.add(frozenset(parameters.items()))
 
     # Train process
-    config = AbaeModelConfiguration(corpus_file=corpus_file, model_name=f"tuning_{uuid}", **parameters)
-    manager = AbaeModelManager(config)  # todo pass "persist". We dont want to persist these
+    config = ABAEModelConfiguration(corpus_file=corpus_file, model_name=f"tuning_{uuid}", **parameters)
+    manager = ABAEModelManager(config)  # todo pass "persist". We dont want to persist these
 
     # The dataset generation depends on the embedding model
     ds = PositiveNegativeCommentGeneratorDataset(

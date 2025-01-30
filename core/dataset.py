@@ -111,21 +111,18 @@ class SimpleWord2VecEmbeddingsDataset(Dataset):
         # Map each word to the correct representation. If it does not exist <UNK> value is returned.
         return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
 
-    def __init__(self, corpus: list, embeddings_model: Word2Vec, max_seq_length: int = 80):
+    def __init__(self, corpus: list, embeddings_model: Word2Vec, max_seq_length: int = 40):
         self.vocabulary = embeddings_model.wv.key_to_index
 
-        ds = map(lambda x: self.generate_numeric_representation(x.split(' ')), corpus)
-        max_found_length = len(max(ds, key=len))
-
-        self.dataset = pre.sequence.pad_sequences(ds, maxlen=min(max_found_length, max_seq_length)).tolist()
-        self.dataset = list(ds)
+        ds = list(map(lambda x: self.generate_numeric_representation(x.split(' ')), corpus))
+        self.dataset = pre.sequence.pad_sequences(ds, maxlen=max_seq_length).tolist()
 
     def __getitem__(self, index: int):
         # Output: Point + Label
         return np.array(self.dataset[index]), 0
 
     def __len__(self):
-        return len(self.dataset) - 1
+        return len(self.dataset)
 
 
 class PositiveNegativeWord2VecEmbeddingsDataset(SimpleWord2VecEmbeddingsDataset):
@@ -149,6 +146,7 @@ class PositiveNegativeWord2VecEmbeddingsDataset(SimpleWord2VecEmbeddingsDataset)
 class PandasNumericTextDataset(Dataset):
     def generate_numeric_representation(self, entry):
         # Map each word to the correct representation. If it does not exist <UNK> value is returned.
+        # todo 0 is for padding only! <unk deve diventare altro>
         return np.array([self.vocabulary[t] if t in self.vocabulary else self.vocabulary['<UNK>'] for t in entry])
 
     def __init__(self, dataframe: DataFrame, vocabulary: dict, max_seq_length: int = 80):
@@ -190,7 +188,7 @@ class PandasPositiveNegativeNumericTextDataset(PandasNumericTextDataset):
         if len(negative_samples) > self.negative_size:
             # Drop a random element
             index = negative_samples.index
-            negative_samples= negative_samples.drop(np.random.choice(index, 1))
+            negative_samples = negative_samples.drop(np.random.choice(index, 1))
 
         negative_samples = np.stack(negative_samples.to_numpy())
         return [positive_sample, negative_samples], 0

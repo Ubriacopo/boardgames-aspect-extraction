@@ -17,7 +17,7 @@ if __name__ == '__main__':
     )
     args_parser.add_argument(
         '--target_path', type=str,
-        default="../output/dataset/pre-processed", help="Path to store the processed datasets."
+        default="../output/dataset/default-pre-processed", help="Path to store the processed datasets."
     )
     args_parser.add_argument(
         '--random_states', type=str,
@@ -43,12 +43,15 @@ if __name__ == '__main__':
     nlp = spacy.load("en_core_web_sm")  # We use small as we don't need anything over the top.
     game_names = game_names.swifter.apply(lambda x: nlp(x)).tolist()
 
-    pipeline = PreProcessingService.full_pipeline(game_names, args.target_path)
+    pipeline = PreProcessingService.default_pipeline(game_names, args.target_path)
+    # pipeline = PreProcessingService.full_pipeline(game_names, args.target_path)
     # Pre-processing main function call.
     combinations: [DatasetGeneration] = [
-        DatasetGeneration(pipeline, 50000, BggDatasetRandomBalancedSampler(10000, corpus_file, random_states[0])),
-        DatasetGeneration(pipeline, 100000, BggDatasetRandomBalancedSampler(20000, corpus_file, random_states[1])),
-        DatasetGeneration(pipeline, 200000, BggDatasetRandomBalancedSampler(40000, corpus_file, random_states[2])),
+        # DatasetGeneration(pipeline, 50000, BggDatasetRandomBalancedSampler(10000, corpus_file, random_states[0])),
+        # DatasetGeneration(pipeline, 100000, BggDatasetRandomBalancedSampler(20000, corpus_file, random_states[1])),
+        # DatasetGeneration(pipeline, 200000, BggDatasetRandomBalancedSampler(40000, corpus_file, random_states[2])),
+        DatasetGeneration(pipeline, 80000, BggDatasetRandomBalancedSampler(10000, corpus_file, random_states[0])),
+        DatasetGeneration(pipeline, 200000, BggDatasetRandomBalancedSampler(40000, corpus_file, random_states[1])),
     ]
 
     print('We will generate a total of:', len(combinations), ' datasets')

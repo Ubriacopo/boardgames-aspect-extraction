@@ -6,6 +6,7 @@ import itertools
 
 from dateparser.search import search_dates
 from pandas import DataFrame
+from spacy import Language
 from spacy.lang.en import English
 from spacy.matcher.matcher import Matcher
 from spacy.matcher.phrasematcher import PhraseMatcher
@@ -49,6 +50,7 @@ class ProcessingRule:
 class SplitSentencesRule(ProcessingRule):
     def __init__(self):
         self.nlp = English()
+        # Task to split in sentences the text.
         self.nlp.add_pipe('sentencizer')
 
     def process(self, entry: str | None | list, extensive_logging: bool = False) -> str | None | list:
@@ -238,6 +240,16 @@ class LemmatizeTextWithMatcherRules(LemmatizeTextRule):
         return [token.lemma_.lower() for token in tokens if not self.is_invalid_token(token)]
 
 
+class LemmatizeTextWithMatcherRulesStrictWords(LemmatizeTextWithMatcherRules):
+    def __init__(self, nlp: Language | None = None,
+                 rules: list[MatcherReplacementRuleOnLemma] = None, valid_tokens: list[str] = None):
+        super().__init__(nlp, rules)
+        self.valid_tokens = [] if valid_tokens is None else valid_tokens
+
+    def is_invalid_token(self, t: Token) -> bool:
+        return (not t.is_alpha and t.lemma_ not in self.valid_tokens) or super().is_invalid_token(t)
+
+
 class WordNoiseRemover(ProcessingRule):
     """
     I see a problem with this approach: We lemmatized before doing the "cleanup" on words.
@@ -275,6 +287,7 @@ class PreProcessingService:
 
     @staticmethod
     def full_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
+        # The generated dataset feels like a failed attempt. Models have a bad time fitting it.
         nlp = spacy.load('en_core_web_md')
         # Do we have any custom stopwords? I considered + and - BUT they might bring meaning.
         # nlp.Defaults.stop_words |= {"<DATE_TOKEN>", "<TIME_TOKEN>"}
@@ -309,22 +322,23 @@ class PreProcessingService:
         )
 
     @staticmethod
-    def default_pipeline(target_path: str, extensive_logging: bool = False):
+    def default_pipeline(game_names: list, target_path: str, extensive_logging: bool = False):
+        nlp = spacy.load('en_core_web_md')
+        # The reference dataset that was used in ABAE proposal had a mean of ~ 7.43 and median of 6.
+        # The 95th pctl is in 17.0 -> (Max 157). We will later see our statistics. (tot 279885)
         return PreProcessingService(
             [
                 # To remove text like: [IMG]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/IMG]
                 # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[A-Z]+)\](.*?)\[/\1\]', r'\2'),
-                # To remove text like: [game=23232]https://cf.geekdo-static.com/mbs/mb_5855_0.gif[/game]
-                # Keep tag content rule (in case the tag has an inner description)
-                CleanTextRule(r'(?i)\[(?P<tag>[a-z]+)(=[^\]]+)?\](.*?)\[/\1\]', r'\3'),
-                # CleanTextRule("(?i)f::o::r::e::v::e::r::blank::k::e::e::p::e::r"),
                 FilterLanguageRule(),
                 SplitSentencesRule(),
-                ShortTextFilterRule(min_words_in_sentence=3),
+                ShortTextFilterRule(min_words_in_sentence=8),
                 WordNoiseRemover(),
-                LemmatizeTextRule(),
-                ShortTextFilterRule(),
+                LemmatizeTextWithMatcherRulesStrictWords(rules=[
+                    # We want to replace game names
+                    GameNamesMatcherReplacementRule(nlp.vocab, game_names),
+                ], valid_tokens=["<GAME_NAME>"]),
+                ShortTextFilterRule(min_words_in_sentence=4),
                 ListToTextRegenerationRule()
             ],
             target_path,
@@ -419,10 +433,10 @@ class DatasetGeneration:
 
 
 if __name__ == "__main__":
-    nlp = spacy.load("en_core_web_md")
+    pnlp = spacy.load("en_core_web_md")
     lm = LemmatizeTextWithMatcherRules(rules=[
-        DateMatcherReplacementRule(nlp.vocab),
-        PlayerCountReplacementRule(nlp.vocab),
+        DateMatcherReplacementRule(pnlp.vocab),
+        PlayerCountReplacementRule(pnlp.vocab),
     ])
 
     print(lm.process("This is a 4p game"))

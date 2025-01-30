@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from core.dataset import PositiveNegativeCommentGeneratorDataset
 from core.evaluation import normalize, get_aspect_top_k_words, coherence_per_aspect
-from core.train import AbaeModelConfiguration, AbaeModelManager
+from core.train import ABAEModelConfiguration, ABAEModelManager
 
 """
     While the need to tune the parameters is a problem in real work case scenario it is very time consuming. 
@@ -190,9 +190,9 @@ class HyperparameterTuningManager:
 
     def __run_config(self, parameters: dict, repeat: int) -> dict:
         # Prepare the ABAE configuration
-        config = AbaeModelConfiguration(corpus_file=self.corpus_file, model_name=f"tuning_{uuid4()}", **parameters)
+        config = ABAEModelConfiguration(corpus_file=self.corpus_file, model_name=f"tuning_{uuid4()}", **parameters)
 
-        manager = AbaeModelManager(config)
+        manager = ABAEModelManager(config)
         vocab = manager.embedding_model.vocabulary()
 
         ds = PositiveNegativeCommentGeneratorDataset(

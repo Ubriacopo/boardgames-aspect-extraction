@@ -1,6 +1,6 @@
 import argparse
 
-from core.train import AbaeModelConfiguration, AbaeModelManager
+from core.train import ABAEModelConfiguration, ABAEModelManager
 from core.dataset import PositiveNegativeCommentGeneratorDataset
 
 from torch.utils.data import DataLoader
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     p.add_argument("--output-path", dest="output_path", type=str, metavar='<str>', default="../output")
     a = p.parse_args()
 
-    config = AbaeModelConfiguration(
+    config = ABAEModelConfiguration(
         corpus_file=a.corpus_file,
         model_name=a.model_name,
         aspect_size=a.aspect_size,
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     )
     print(config)
 
-    manager = AbaeModelManager(config)
+    manager = ABAEModelManager(config)
     train_model = manager.__prepare_training_model('adam')
     train_dataset = PositiveNegativeCommentGeneratorDataset(
         vocabulary=manager.embedding_model.vocabulary(),

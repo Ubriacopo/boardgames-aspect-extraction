@@ -1,5 +1,5 @@
 import argparse
-from core.train import AbaeModelManager, AbaeModelConfiguration
+from core.train import ABAEModelManager, ABAEModelConfiguration
 from core.evaluation import normalize, get_aspect_top_k_words, coherence_per_aspect
 import core.dataset as dataset
 
@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     a = parser.parse_args()
 
-    config = AbaeModelConfiguration(
+    config = ABAEModelConfiguration(
         corpus_file=a.corpus_file, model_name=a.model_name, aspect_size=a.aspect_size, output_path="../output"
     )
 
-    manager = AbaeModelManager(config)
+    manager = ABAEModelManager(config)
     inference_model = manager.__prepare_evaluation_model()
 
     word_emb = normalize(inference_model.get_layer('word_embedding').weights[0].value.data)
