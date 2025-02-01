@@ -32,7 +32,7 @@ class ABAEModelConfiguration:
     corpus_file: str
     model_name: str
 
-    aspect_size: int = 16
+    aspect_size: int = 14
     max_vocab_size: int = None
     embedding_size: int = 200
 
@@ -41,10 +41,10 @@ class ABAEModelConfiguration:
     momentum: float = 0.9
 
     max_sequence_length: int = 80
-    negative_sample_size: int = 15
+    negative_sample_size: int = 20
 
     batch_size: int = 64
-    epochs: int = 10
+    epochs: int = 15
 
     output_path: str = "./output"
 
@@ -140,6 +140,15 @@ class ABAEModelManager:
         self._t_model.save(considered_path)
         # Return history and re-initialize the ev_model
         return history, self.get_inference_model(force_refresh=True)
+
+    def get_training_model(self, force_refresh: bool = False, override=False):
+        if force_refresh or self._ev_model is None:
+            self._t_model = self.model_generator.generate_training_model(
+                custom_objects={'max_margin_loss': max_margin_loss},
+                existing_model_path=f"{self.output_path}/{self.config.model_name}.keras"
+            )
+
+        return self._t_model
 
     def get_inference_model(self, force_refresh: bool = False):
         """

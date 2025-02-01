@@ -338,7 +338,7 @@ class PreProcessingService:
                     # We want to replace game names
                     GameNamesMatcherReplacementRule(nlp.vocab, game_names),
                 ], valid_tokens=["<GAME_NAME>"]),
-                ShortTextFilterRule(min_words_in_sentence=4),
+                ShortTextFilterRule(min_words_in_sentence=2),
                 ListToTextRegenerationRule()
             ],
             target_path,

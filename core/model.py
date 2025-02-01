@@ -9,7 +9,7 @@ import core.embeddings
 import core.layer as layer
 from core.utils import max_margin_loss
 
-
+## TODO: Qualcosa non va. (54% acc, mi sarei aspettato di piu)
 class ModelGenerator:
     @abstractmethod
     def generate_training_model(self, custom_objects: dict, existing_model_path: str = None):
@@ -34,7 +34,7 @@ class ABAEGenerator(ModelGenerator):
 
         negative_input_shape = (self.negative_length, self.max_seq_length)
         n_sentences_input_layer = Input(shape=negative_input_shape, name='negative', dtype='int32')
-
+        # todo vedi se il caricamento di questi pesi é corretto
         word_embeddings_layer = Embedding(
             self.word_embeddings.actual_vocab_size(), self.word_embeddings.embedding_size,
             weights=self.word_embeddings.weights(), trainable=False, name="word_embeddings", mask_zero=True
@@ -52,7 +52,7 @@ class ABAEGenerator(ModelGenerator):
 
         aspect_size = self.aspect_embeddings.aspect_size
         predicted_aspect = keras.layers.Dense(aspect_size, activation='softmax', name="sentence_aspect")(weighted_s_emb)
-
+        # todo che sia il w_regularization il problema?
         aspect_embeddings_layer = layer.AspectEmbeddings(
             weights=self.aspect_embeddings.weights(), embedding_size=self.word_embeddings.embedding_size,
             w_regularization=OrthogonalRegularizer(factor=0.1)  # Pass factor?

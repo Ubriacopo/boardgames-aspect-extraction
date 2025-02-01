@@ -90,3 +90,4 @@ def coherence_model_generation(aspects: list[list], ds, dictionary, topn=10):
         raise "I cannot take top n that is over the number of top words provided!"
     coh_model = CoherenceModel(topics=aspects, dictionary=dictionary, texts=ds, coherence='c_npmi', topn=topn)
     return coh_model.get_coherence_per_topic(), coh_model
+
