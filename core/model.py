@@ -63,22 +63,6 @@ class ABAEGenerator(ModelGenerator):
         # Model outputs: [Loss, AttentionWeights, AspectProbability]
         return [sentence_input_layer, n_sentences_input_layer], [output, attention_w, predicted_aspect]
 
-    def __evaluation_layers(self) -> tuple[list[keras.Layer], list[keras.Layer]]:
-        sentence_input_layer = Input(shape=(self.max_seq_length,), name='positive', dtype='int32')
-
-        word_embeddings_layer = Embedding(
-            input_dim=self.word_embeddings.actual_vocab_size(), output_dim=self.word_embeddings.embedding_size,
-            weights=self.word_embeddings.weights(), trainable=False, name="word_embeddings", mask_zero=True
-        )
-
-        s_embedding = word_embeddings_layer(sentence_input_layer)  # Sentence Embedding
-        attention_w = core.layer.SelfAttention(name="attention")(s_embedding)  # Attention weights
-        weighted_s_emb = core.layer.WeightLayer()([attention_w, s_embedding])  # Weighted sentence embeddings
-
-        aspect_size = self.aspect_embeddings.aspect_size
-        dense_layer = keras.layers.Dense(units=aspect_size, activation='softmax')(weighted_s_emb)
-
-        return [sentence_input_layer], [dense_layer, attention_w]
 
     @staticmethod
     def restore_training_model(custom_objects: dict, existing_model_path: str):

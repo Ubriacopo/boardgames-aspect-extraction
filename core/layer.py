@@ -42,7 +42,9 @@ class SelfAttention(Layer):
         p_sum = p_sum + K.repeat(self.b, self.steps, axis=0) if self.bias else p_sum
 
         a = K.exp(K.tanh(p_sum)) * K.cast(mask, B.floatx()) if mask is not None else K.exp(K.tanh(p_sum))
-        res = a / K.sum(a, axis=-1, keepdims=True) + B.epsilon()
+        # errore qui! il b.epsionl non al denominatore! BINGO! ECCCO  CAUSA DEI MIEI MALI (UNO DI TNATI)
+        # old : res = a / K.sum(a, axis=-1, keepdims=True) + B.epsilon()
+        res = a / (K.sum(a, axis=-1, keepdims=True) + B.epsilon())
 
         return res
 

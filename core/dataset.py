@@ -47,9 +47,8 @@ class BaseBoardgameDataset(Dataset):
         # To what size we have to pad our sequences:
         padding_size = np.min([max_found_length, max_seq_length])
 
-        if with_lost_information > 0:
-            print(f"We loose information on {with_lost_information} points."
-                  f"This is {with_lost_information / len(self.dataset) * 100}% of the dataset.")
+        with_lost_information > 0 and print(f"We loose information on {with_lost_information} points."
+                                            f"This is {with_lost_information / len(self.dataset) * 100}% of the dataset.")
 
         print(f"Padding sequences to length ({padding_size}).")
         self.dataset = pd.Series(pre.sequence.pad_sequences(self.dataset, maxlen=padding_size).tolist())

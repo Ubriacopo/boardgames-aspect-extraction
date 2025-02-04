@@ -417,7 +417,7 @@ class PreProcessingService:
             return f"{self.target_path}/{name}.processed.csv"  # Abort the process.
 
         ds = self.pre_process_dataset(target_size, dataset_sampler)
-        ds.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w", header=True, index=False)
+        ds.to_csv(f"{self.target_path}/{name}.preprocessed.csv", mode="w",  )
         return f"{self.target_path}/{name}.preprocessed.csv"
 
 
