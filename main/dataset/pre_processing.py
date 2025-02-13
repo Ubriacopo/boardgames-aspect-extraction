@@ -1,5 +1,5 @@
-import itertools
-from abc import abstractmethod, ABC
+import string
+from abc import abstractmethod
 from pathlib import Path
 
 import swifter
@@ -11,7 +11,7 @@ from pandas import DataFrame, Series
 from spacy import Language
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher, Matcher
-from spacy.tokens import Doc
+from spacy.tokens import Doc, Token
 
 from core.dataset_sampler import ConsumingDatasetSampler, BggDatasetRandomBalancedSampler
 
@@ -123,17 +123,59 @@ class MatcherReplacementRuleOnLemma:
         return MatcherReplacementRuleOnLemma(matcher, "<GAME_NAME>")
 
 
-class ConllPreProcessingService:
-    def __init__(self, pipeline: list[PreProcessingRule], target_path: str, nlp: spacy.language.Language | None = None):
-        self.pipeline = pipeline  # Steps prior to the spacy NLP model
-
-        if nlp is None:
-            nlp = spacy.load("en_core_web_md")
-            nlp.add_pipe("conll_formatter", last=True)
-
+class SpacyProcessingRule(PreProcessingRule):
+    def __init__(self, nlp: Language):
         self.nlp = nlp
-        self.target_path = target_path
 
+    def process_rule(self, entry: str | list) -> str | list | Doc | None:
+        return self.nlp(entry)
+
+
+class SpacyDocDefaultFilterRule(PreProcessingRule):
+    def __init__(self, valid_tokens: list[str] = None):
+        super().__init__()
+        self.valid_tokens = [] if valid_tokens is None else valid_tokens
+
+    def is_invalid_token(self, t: Token) -> bool:
+        return (not t.is_alpha and t.lemma_ not in self.valid_tokens) or t.is_currency or t.is_stop or t.is_space
+
+    def process_rule(self, entry: Doc) -> str | list | None:
+        return [t.lemma_.lower() for t in entry if not self.is_invalid_token(t)]
+
+
+class FromDocToTextComposerRule(PreProcessingRule):
+    def process_rule(self, entry: str | list | Doc) -> str | list | None:
+        return " ".join([e.lower().strip() for e in entry]) if type(entry) is list else entry
+
+
+class ConllProcessingPersistenceRule(PreProcessingRule):
+    def __init__(self):
+        self.conll_strings = []
+
+    def process_rule(self, entry: str | list | Doc) -> str | list | None:
+        self.conll_strings.append(entry._.conll_str)
+        return entry
+
+
+class BagOfWordsFilterRule(PreProcessingRule):
+    def __init__(self, words: list[str]):
+        # If any of these words appear in the sentence, it is rejected
+        self.words = [e.lower() for e in words]
+
+    def process_rule(self, entry: str | list) -> str | list | None:
+        if type(entry) is list:
+            e = [e.lower() for e in entry]
+            return None if not set(e).isdisjoint(set(self.words)) else entry
+        return None if any(map(entry.lower().__contains__, self.words)) else entry
+
+
+class ConllPreProcessingService:
+    def __init__(self, pipeline: list[PreProcessingRule], target_path: str):
+        self.pipeline = pipeline
+        if not any(isinstance(pipe, ConllProcessingPersistenceRule) for pipe in pipeline):
+            raise "To run the CONLL-PreProcessing service you have to handle CONLL as a layer"
+
+        self.target_path = target_path
         Path(self.target_path).mkdir(parents=True, exist_ok=True)
 
     @staticmethod
@@ -141,7 +183,7 @@ class ConllPreProcessingService:
         first = True
         with open(target_path, "a", encoding="utf-8") as f:
             for conll_string in conll_strings:
-                f.write(conll_string) if first else f.write("\n" + conll_string)
+                f.write(conll_string) if first else f.write("\n\n" + conll_string)
                 first = False  # Special case has been handled.
 
     def process(self, entry: str, pipeline_start_index: int = 0) -> Doc | list[Doc] | None:
@@ -153,15 +195,14 @@ class ConllPreProcessingService:
                 if current_step_rule.branches() and type(entry) == list:
                     return [self.process(s, i + 1) for s in entry]
 
-            processed_document = self.nlp(entry)
-            return processed_document
+            return entry
 
         except Exception:
             # todo: pass a verbose field?
             # print(f"Faced an error during the processing of the entry: {entry}.\nError: {e}")
             return None
 
-    def process_dataset(self, target_size: int, sampler: ConsumingDatasetSampler):
+    def process_dataset(self, target_size: int, sampler: ConsumingDatasetSampler) -> tuple[Series, str]:
         gen = sampler.generator()
 
         # No longer a dataframe. We do not require such information
@@ -179,77 +220,45 @@ class ConllPreProcessingService:
             dataset = pd.concat([dataset, exploded])
 
             # Also reset the index when removing duplicates
-            duplicate_less = dataset.groupby(dataset.apply(lambda x: x.text)).first().reset_index()[0]
+            duplicate_less = dataset.drop_duplicates()
             dataset = duplicate_less
 
-        print("Processing terminated. We are storing the file now...")
+        print("Processing terminated. We are storing the file CONLL file now...")
         file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.conll.txt"
-        ConllPreProcessingService.write_conll_strings(file_path, dataset.map(lambda x: x._.conll_str).tolist())
-        print(f"File created with success at {self.target_path}")
+        p = next(i for i in self.pipeline if isinstance(i, ConllProcessingPersistenceRule))
+        ConllPreProcessingService.write_conll_strings(file_path, list(set(p.conll_strings)))
+        print(f"File created with success as {file_path}")
 
-        return dataset
+        print("Processing terminated. We are storing the ABAE ready file now...")
+        file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.csv"
+        dataset.to_frame('comments').to_csv(file_path, index=False, encoding="utf-8")
+        print(f"File created with success as {file_path}")
 
-
-# Specializzato per i ds che danno indietro un conll
-class PreProcessingService:
-    def __init__(self, pipeline: list[PreProcessingRule], target_path: str, nlp: spacy.language.Language | None = None):
-        self.pipeline = pipeline
-
-        self.target_path = target_path
-        Path(self.target_path).mkdir(parents=True, exist_ok=True)
-
-    def process(self, entry: str, pipeline_start_index: int = 0):
-        try:
-            for i in range(pipeline_start_index, len(self.pipeline)):
-                current_step_rule = self.pipeline[i]
-                entry = current_step_rule(entry)
-                # If the process branches we have to return a list of processed branches.
-                if current_step_rule.branches() and type(entry) == list:
-                    return [self.process(s, i + 1) for s in entry]
-
-            return entry
-
-        except Exception as e:
-            print(f"Faced an error during the processing of the entry: {entry}.\nError: {e}")
-            return None
-
-    def process_dataset(self, target_size: int, sampler: ConsumingDatasetSampler):
-        """
-        @param target_size: In amount of records
-        @param sampler: Gets random rows from the dataset.
-        @return: The processed dataset.
-        """
-        gen = sampler.generator()
-        dataset = DataFrame()  # Where we store the data at the end.
-
-        while len(dataset) < target_size:
-            batch = next(gen)  # Get the next batch of sentences to process.
-
-            processed_comments = batch.swifter.apply(self.process)
+        return dataset, file_path
 
 
 class PreProcessingServiceFactory:
     @staticmethod
     def default_with_conll(game_names: list, target_path: str):
-        nlp = spacy.load("en_core_web_md")  # Medium should be good enough.
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
         nlp.add_pipe("number_replacement_rule")
         nlp.add_pipe("conll_formatter", last=True)
 
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+
         return ConllPreProcessingService(
             [
+                BagOfWordsFilterRule(kickstarter_words),
                 LanguageFilterRule(),
                 SentenceSplitterRule(),
                 ShortTextFilterRule(min_sentence_length=4),
                 WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                ConllProcessingPersistenceRule(),
+                SpacyDocDefaultFilterRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
             ],
             target_path,
-            nlp
         )
-
-
-if __name__ == "__main__":
-    ps = PreProcessingServiceFactory.default_with_conll(['Catan', 'Risk'], "../output")
-    sampler = BggDatasetRandomBalancedSampler(5, "../../data/corpus.csv")
-
-    ds = ps.process_dataset(1000, sampler)

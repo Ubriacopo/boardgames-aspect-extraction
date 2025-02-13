@@ -2,7 +2,11 @@ from dataclasses import dataclass
 
 import keras
 from keras import Layer, Input
+from keras.src.layers import Embedding, Dense
+from keras.src.regularizers import OrthogonalRegularizer
 
+from main.abae.embedding import WordEmbedding, AspectEmbedding
+from main.abae.layer import SelfAttention, Weight, Average, WeightedAspectEmbedding, MaxMargin
 from main.model import ModelGenerator
 
 
@@ -10,6 +14,9 @@ from main.model import ModelGenerator
 class ABAEConfig:
     max_seq_len: int = 80
     negative_sample_size: int = 20
+
+    embeddings_model: WordEmbedding = None
+    aspect_embeddings_model: AspectEmbedding = None
 
 
 class ABAE(ModelGenerator):
@@ -22,10 +29,30 @@ class ABAE(ModelGenerator):
         sentence_input = Input(shape=(self.c.max_seq_len,), name='positive', dtype='int32')
         n_sentences_input = Input(shape=self.negative_shape, name='negative', dtype='int32')
 
-        # todo: Continua
-        # todo prova con:
-        # MultiHeadAttention if key query and value same self attention
-        return [sentence_input, n_sentences_input], [output, attention_w, predicted_aspect]
+        emb_size = self.c.embeddings_model.embedding_size
+
+        embedding_layer = Embedding(
+            self.c.embeddings_model.actual_vocab_size(), emb_size,
+            weights=self.c.embeddings_model.weights(), trainable=False, name='word_embedding', mask_zero=True
+        )
+
+        s_emb = embedding_layer(sentence_input)
+        att = SelfAttention(name="attention")(s_emb)
+        # Sentence embeddings weighted based on the attention mechanism
+        w_s_emb = Weight(name="weight")([s_emb, att])
+
+        # Average negative embeddings
+        avg_n_emb = Average()(embedding_layer(n_sentences_input))
+        aspect_size = self.c.aspect_embeddings_model.aspect_size
+
+        aspect_pred = Dense(aspect_size, activation='softmax', name='sentence_aspect')(w_s_emb)
+        w_aspect_emb_layer = WeightedAspectEmbedding(
+            emb_size, self.c.aspect_embeddings_model.weights(), OrthogonalRegularizer(factor=0.1)
+        )
+
+        r_w_emb = w_aspect_emb_layer(aspect_pred)
+        output = MaxMargin(name="max_margin")([w_s_emb, avg_n_emb, r_w_emb])
+        return [sentence_input, n_sentences_input], [output, att, aspect_pred]
 
     @staticmethod
     def restore_training_model(custom_objects: dict, existing_model_path: str):

@@ -38,13 +38,11 @@ class SelfAttention(Layer):
             # Add the Bias term
             eij += K.repeat(self.b, self.steps, axis=0)
 
-        a = K.exp(K.tanh(eij))
+        act_eij = K.tanh(eij)
 
-        if mask is not None:
-            a *= K.cast(mask, B.floatx())
-
-        a /= a.sum(axis=1, keepdim=True) + B.epsilon()
-        return a
+        a = K.exp(act_eij) if mask is None else K.exp(act_eij) * K.cast(mask, B.floatx())
+        res = a / (a.sum(axis=1, keepdim=True) + B.epsilon())
+        return res
 
     def compute_output_shape(self, input_shape):
         return input_shape[0], input_shape[1]
@@ -118,11 +116,29 @@ class MaxMargin(Layer):
         # (b, wv)
         r_embeddings = torch.nn.functional.normalize(input_t[2], dim=-1)
 
-        steps = n_embeddings.shape[1]  # How many samples I have
+        # How many negative samples I have
+        steps = n_embeddings.shape[1]
+
         # (b, steps)
-        pos = K.repeat((s_embeddings * r_embeddings).sum(1, keepdim=True), steps, axis=-1)
+        pos = K.repeat((s_embeddings * r_embeddings).sum(-1, keepdim=True), steps, axis=-1)
         # (b, steps)
-        neg = (n_embeddings * K.repeat(r_embeddings.unsqueeze(-2), steps, axis=-2)).sum(1)
+        neg = (n_embeddings * K.repeat(r_embeddings.unsqueeze(-2), steps, axis=-2)).sum(-1)
 
         loss = K.cast(K.maximum(0., (1. - pos + neg)).sum(1), dtype=B.floatx())
         return loss
+
+
+class Weight(Layer):
+    def __init__(self, **kwargs):
+        self.supports_masking = True
+        super(Weight, self).__init__(**kwargs)
+
+    def call(self, x, mask=None):
+        vector, weights = x[0], x[1]
+        return (vector * weights.unsqueeze(-1)).sum(1)
+
+    def compute_mask(self, x, mask=None):
+        return None
+
+    def compute_output_shape(self, input_shape):
+        return input_shape[0][0], input_shape[0][-1]

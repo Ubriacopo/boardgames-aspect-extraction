@@ -32,8 +32,10 @@ class WordEmbedding:
         # Add padding token at spot 0 by re-organizing based on counts.
         wv = self.model.wv
         wv.add_vector("<PAD>", np.zeros(self.embedding_size))
-        wv.set_vecattr("<PAD>", "count", wv.wv.get_vecattr(wv.wv.index_to_key[0], "count") + 1)
+        wv.set_vecattr("<PAD>", "count", wv.get_vecattr(wv.index_to_key[0], "count") + 1)
 
+        # Unknown words are mapped to default 0 vector.
+        wv.add_vector("<UNK>", np.zeros(self.embedding_size))
         wv.sort_by_descending_frequency()
 
         persist and self.model.save(self.file_path)
