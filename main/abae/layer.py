@@ -5,14 +5,14 @@ from keras import ops as K
 from keras import backend as B
 
 
-class SelfAttention(Layer):
+class Attention(Layer):
     """
     It is a self attention mechanism but not the same as the one faced in transformers.
     """
 
     def __init__(self, use_bias: bool = True, **kwargs):
         self.supports_masking = True
-        super(SelfAttention, self).__init__(**kwargs)
+        super(Attention, self).__init__(**kwargs)
 
         self.w: Variable | None = None
         self.b = self.add_weight(name='{}_b'.format(self.name), shape=(1,), initializer="zero") if use_bias else None
@@ -23,7 +23,7 @@ class SelfAttention(Layer):
         self.steps = input_shape[1]
 
         self.w = self.add_weight(name='{}_W'.format(self.name), shape=(input_shape[-1], input_shape[-1]))
-        super(SelfAttention, self).build(input_shape)
+        super(Attention, self).build(input_shape)
 
     def call(self, embeddings, mask=None):
         term = K.expand_dims(K.cast(mask, B.floatx()), axis=-1)
@@ -81,7 +81,7 @@ class WeightedAspectEmbedding(Layer):
     @classmethod
     def from_config(cls, config):
         embedding_size = config["embedding_size"]
-        # del config["embedding_size"]
+        del config["embedding_size"]
         return cls(embedding_size, **config)
 
     def compute_output_shape(self, input_shape):

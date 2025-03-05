@@ -1,3 +1,10 @@
+# IMPORTANTE:
+
+> Per proseguire con dei test magari sensati usiamo il modello di embedding e scegliamo topn keyword piu simili
+> della mia categoria? Tipo 'luck' i più simili e poi ne decido un subset per creare dei test set mirati creando un
+> test set composto dai commenti che citano una di queste keyword.
+> In breve: luck -> Most similar -> hand pick good sinonimi -> extract such comments from a subset not seen from our ds -> evaluate
+
 I am doing a complete overhaul. Something is messed up somewhere.<br>
 Is the metric not well-defined? What is it?
 
