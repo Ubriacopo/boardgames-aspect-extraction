@@ -1,19 +1,17 @@
-import string
 from abc import abstractmethod
 from pathlib import Path
 
 import swifter
 import pandas as pd
-import spacy_conll
 import spacy
 from fast_langdetect import detect
-from pandas import DataFrame, Series
+from pandas import Series
 from spacy import Language
 from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher, Matcher
 from spacy.tokens import Doc, Token
 
-from core.dataset_sampler import ConsumingDatasetSampler, BggDatasetRandomBalancedSampler
+from core.dataset_sampler import ConsumingDatasetSampler
 
 
 class PreProcessingRule:
@@ -169,24 +167,15 @@ class BagOfWordsFilterRule(PreProcessingRule):
         return None if any(map(entry.lower().__contains__, self.words)) else entry
 
 
-class ConllPreProcessingService:
-    def __init__(self, pipeline: list[PreProcessingRule], target_path: str):
-        self.pipeline = pipeline
-        if not any(isinstance(pipe, ConllProcessingPersistenceRule) for pipe in pipeline):
-            raise "To run the CONLL-PreProcessing service you have to handle CONLL as a layer"
-
-        self.target_path = target_path
+class SimplePreProcessingService:
+    def __init__(self, pipeline: list[PreProcessingRule], target_path: str, test_split: float = None):
+        self.pipeline: list[PreProcessingRule] = pipeline
+        self.target_path: str = target_path
         Path(self.target_path).mkdir(parents=True, exist_ok=True)
+        # If defined when storing the % set is reserved for a test dataset
+        self.test_split: float | None = test_split
 
-    @staticmethod
-    def write_conll_strings(target_path: str, conll_strings: list[str]):
-        first = True
-        with open(target_path, "a", encoding="utf-8") as f:
-            for conll_string in conll_strings:
-                f.write(conll_string) if first else f.write("\n\n" + conll_string)
-                first = False  # Special case has been handled.
-
-    def process(self, entry: str, pipeline_start_index: int = 0) -> Doc | list[Doc] | None:
+    def process(self, entry: str, pipeline_start_index: int = 0, verbose: bool = False) -> Doc | list[Doc] | None:
         try:
             for i in range(pipeline_start_index, len(self.pipeline)):
                 current_step_rule = self.pipeline[i]
@@ -197,49 +186,73 @@ class ConllPreProcessingService:
 
             return entry
 
-        except Exception:
-            # todo: pass a verbose field?
-            # print(f"Faced an error during the processing of the entry: {entry}.\nError: {e}")
+        except Exception as e:
+            verbose and print(f"Faced an error during the processing of the entry: {entry}.\nError: {e}")
             return None
 
-    def process_dataset(self, target_size: int, sampler: ConsumingDatasetSampler) -> tuple[Series, str]:
-        gen = sampler.generator()
+    def store(self, dataset: Series, target_size: int) -> tuple[Series, str]:
+        print("Processing terminated. We are storing the work ready file now...")
+        if self.test_split is not None:
+            test_file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.test.csv"
 
+            test_split = dataset.sample(frac=self.test_split)
+            test_split.to_frame('comments').to_csv(test_file_path, index=False, encoding="utf-8")
+
+            dataset = dataset.drop(test_split.index)  # todo rimuovi quelli in split.
+            print(f"Test subset created with success as {test_file_path}")
+
+        file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.csv"
+        dataset.to_frame('comments').to_csv(file_path, index=False, encoding="utf-8")
+        print(f"File created with success as {file_path}")
+        return dataset, file_path
+
+    def process_dataset(self, target_size: int, sampler: ConsumingDatasetSampler):
+        gen = sampler.generator()
         # No longer a dataframe. We do not require such information
         dataset = Series()
 
         while len(dataset) < target_size:
             batch = next(gen)
-
             if len(batch) == 0:
-                break  # We would be going in loops.
+                break  # We would be going in loops forever.
 
             results = batch["comments"].swifter.apply(lambda x: self.process(x))
             # Explode the created records:
             exploded = results.explode().reset_index(drop=True).dropna()
             dataset = pd.concat([dataset, exploded])
-
             # Also reset the index when removing duplicates
             duplicate_less = dataset.drop_duplicates()
             dataset = duplicate_less
 
+        return self.store(dataset, target_size)
+
+
+class ConllPreProcessingService(SimplePreProcessingService):
+    def __init__(self, pipeline: list[PreProcessingRule], target_path: str, test_fraction: float = None):
+        if not any(isinstance(pipe, ConllProcessingPersistenceRule) for pipe in pipeline):
+            raise "To run the CONLL-PreProcessing service you have to handle CONLL as a layer"
+        super().__init__(pipeline, target_path, test_fraction)
+
+    @staticmethod
+    def write_conll_strings(target_path: str, conll_strings: list[str]):
+        first = True
+        with open(target_path, "a", encoding="utf-8") as f:
+            for conll_string in conll_strings:
+                f.write(conll_string) if first else f.write("\n\n" + conll_string)
+                first = False  # Special case has been handled.
+
+    def store(self, dataset: Series, target_size: int) -> tuple[Series, str]:
         print("Processing terminated. We are storing the file CONLL file now...")
         file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.conll.txt"
         p = next(i for i in self.pipeline if isinstance(i, ConllProcessingPersistenceRule))
         ConllPreProcessingService.write_conll_strings(file_path, list(set(p.conll_strings)))
         print(f"File created with success as {file_path}")
-
-        print("Processing terminated. We are storing the ABAE ready file now...")
-        file_path = f"{self.target_path}/pre_processed.{int(target_size / 1000)}k.csv"
-        dataset.to_frame('comments').to_csv(file_path, index=False, encoding="utf-8")
-        print(f"File created with success as {file_path}")
-
-        return dataset, file_path
+        return super().store(dataset, target_size)
 
 
 class PreProcessingServiceFactory:
     @staticmethod
-    def default_with_conll(game_names: list, target_path: str):
+    def default_with_conll(game_names: list, target_path: str, test_fraction: float = None):
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
         nlp.add_pipe("number_replacement_rule")
@@ -261,4 +274,29 @@ class PreProcessingServiceFactory:
                 FromDocToTextComposerRule()
             ],
             target_path,
+            test_fraction
+        )
+
+    @staticmethod
+    def default(game_names: list, target_path: str, test_fraction: float = None):
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+        nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        nlp.add_pipe("number_replacement_rule")
+
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+
+        return SimplePreProcessingService(
+            [
+                BagOfWordsFilterRule(kickstarter_words),
+                LanguageFilterRule(),
+                SentenceSplitterRule(),
+                ShortTextFilterRule(min_sentence_length=4),
+                WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                SpacyDocDefaultFilterRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
+            ],
+            target_path,
+            test_fraction
         )
