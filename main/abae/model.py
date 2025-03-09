@@ -5,7 +5,8 @@ from keras import Layer, Input
 from keras.src.layers import Embedding, Dense, MultiHeadAttention
 from keras.src.regularizers import OrthogonalRegularizer
 
-from main.abae.embedding import WordEmbedding, AspectEmbedding
+from main.embedding import Word2VecWrapper
+from main.abae.embedding import AspectEmbedding
 from main.abae.layer import Attention, Weight, Average, WeightedAspectEmbedding, MaxMargin
 from main.model import KerasModelGenerator
 
@@ -19,9 +20,9 @@ class ABAEGeneratorConfig:
 
 
 class BaseABAE(KerasModelGenerator, ABC):
-    def __init__(self, config: ABAEGeneratorConfig, emb_model: WordEmbedding, aspect_model: AspectEmbedding):
+    def __init__(self, config: ABAEGeneratorConfig, emb_model: Word2VecWrapper, aspect_model: AspectEmbedding):
         self.c: ABAEGeneratorConfig = config
-        self.emb_model: WordEmbedding = emb_model
+        self.emb_model: Word2VecWrapper = emb_model
         self.aspect_model: AspectEmbedding = aspect_model
         # The shape of the negative input layer
         self.negative_shape = (self.c.negative_sample_size, self.c.max_seq_len)

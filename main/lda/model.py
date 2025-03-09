@@ -9,8 +9,8 @@ from main.lda.dataset import LdaDataset
 
 @dataclass
 class LdaGeneratorConfig:
+    corpus_file_path: str
     topics: int = 14
-    corpus_file_path: str = ""
     random_state: int = 42
     chunk_size: int = 1000
     passes: int = 10

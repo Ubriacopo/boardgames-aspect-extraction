@@ -4,6 +4,7 @@ from pathlib import Path
 import swifter
 import pandas as pd
 import spacy
+import torch
 from fast_langdetect import detect
 from pandas import Series
 from spacy import Language
@@ -141,6 +142,17 @@ class SpacyDocDefaultFilterRule(PreProcessingRule):
         return [t.lemma_.lower() for t in entry if not self.is_invalid_token(t)]
 
 
+class SpacyDocPOSProcessingRule(SpacyDocDefaultFilterRule):
+    # Filter & Process
+    def process_rule(self, entry: Doc) -> str | list | None:
+        return [f"{t.lemma_.lower()}__{t.pos_}" for t in entry if not self.is_invalid_token(t)]
+
+
+class SpacyDocNounFilterRule(SpacyDocDefaultFilterRule):
+    def is_invalid_token(self, t: Token) -> bool:
+        return not t.pos_ == "NOUN" or super().is_invalid_token(t)
+
+
 class FromDocToTextComposerRule(PreProcessingRule):
     def process_rule(self, entry: str | list | Doc) -> str | list | None:
         return " ".join([e.lower().strip() for e in entry]) if type(entry) is list else entry
@@ -214,15 +226,16 @@ class SimplePreProcessingService:
         while len(dataset) < target_size:
             batch = next(gen)
             if len(batch) == 0:
+                print("Had to stop as there is no more data!")
                 break  # We would be going in loops forever.
 
             results = batch["comments"].swifter.apply(lambda x: self.process(x))
             # Explode the created records:
             exploded = results.explode().reset_index(drop=True).dropna()
             dataset = pd.concat([dataset, exploded])
-            # Also reset the index when removing duplicates
-            duplicate_less = dataset.drop_duplicates()
-            dataset = duplicate_less
+            # Also reset the index when removing duplicates (todo?)
+            dataset = dataset.drop_duplicates().reset_index(drop=True)
+            print(f"ds_size: {len(dataset)}/{target_size}")
 
         return self.store(dataset, target_size)
 
@@ -278,7 +291,16 @@ class PreProcessingServiceFactory:
         )
 
     @staticmethod
-    def default(game_names: list, target_path: str, test_fraction: float = None):
+    def default_sentences(game_names: list, target_path: str, test_fraction: float = None):
+        """
+        Processing such as key-points are:
+            SentenceSplit -> [branches] -> SpacyProcessingRule -> DefaultDocFilter (no-stop, no-num) -> Compose
+            Forked sentences are later joined in a flat csv representation
+        @param game_names:
+        @param target_path:
+        @param test_fraction:
+        @return:
+        """
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
         nlp.add_pipe("number_replacement_rule")
@@ -300,3 +322,63 @@ class PreProcessingServiceFactory:
             target_path,
             test_fraction
         )
+
+    @staticmethod
+    def default(game_names: list, target_path: str, test_fraction: float = None):
+        """
+        Processing such as key-points are:
+            [{MinorSteps}] -> SpacyProcessingRule -> DefaultDocFilter (no-stop, no-num) -> Compose
+        @param game_names:
+        @param target_path:
+        @param test_fraction:
+        @return:
+        """
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+        nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        nlp.add_pipe("number_replacement_rule")
+
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+        return SimplePreProcessingService(
+            [
+                BagOfWordsFilterRule(kickstarter_words),
+                LanguageFilterRule(),
+                ShortTextFilterRule(min_sentence_length=4),
+                WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                SpacyDocDefaultFilterRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
+            ],
+            target_path,
+            test_fraction
+        )
+
+    @staticmethod
+    def pos_tagged(game_names: list, target_path: str, test_frac: float = None) -> SimplePreProcessingService:
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+        nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        nlp.add_pipe("number_replacement_rule")
+
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+        return SimplePreProcessingService(
+            [
+                BagOfWordsFilterRule(kickstarter_words),
+                LanguageFilterRule(),
+                # SentenceSplitterRule(), No contextual information si wanted to be lost? We keep the whole sentence?
+                ShortTextFilterRule(min_sentence_length=4),
+                WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                SpacyDocPOSProcessingRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
+            ],
+            target_path,
+            test_frac
+        )
+
+
+def prepare_game_names():
+    game_names = pd.read_csv("../../resources/2024-08-18.csv")['Name']
+    game_names = pd.concat([game_names, pd.Series(["Quick", "Catan"])], ignore_index=True).tolist()
+    print(f"We have a total of {len(game_names)} different game names.")
+    return game_names

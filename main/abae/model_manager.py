@@ -9,7 +9,8 @@ from torch.utils.data import DataLoader
 
 from core.utils import max_margin_loss
 from main.abae.dataset import PositiveNegativeABAEDataset
-from main.abae.embedding import AspectEmbedding, WordEmbedding
+from main.embedding import Word2VecWrapper
+from main.abae.embedding import AspectEmbedding
 from main.abae.model import BaseABAE, ABAE, ABAEGeneratorConfig, SelfAttentionABAE
 from main.utils import CorpusLoaderUtility
 
@@ -81,18 +82,16 @@ class ABAEManagerFactory:
         pass
 
     @staticmethod
-    def make_emb_wrapper(corpus: list, config: ABAEManagerConfig, override: bool) -> WordEmbedding:
+    def make_emb_wrapper(corpus: list, config: ABAEManagerConfig, override: bool) -> Word2VecWrapper:
 
         embeddings_file = f"{config.output_path()}/{config.model_name}.embeddings.model"
-        emb_model: WordEmbedding = WordEmbedding(config.embedding_size, config.min_word_count, config.max_vocab_size)
 
         if not override and Path(embeddings_file).exists():
-            emb_model.load_existing(embeddings_file)
-            return emb_model
+            return Word2VecWrapper.from_existing(embeddings_file)
 
+        emb_model = Word2VecWrapper(config.embedding_size, config.min_word_count, config.max_vocab_size)
         emb_model.generate(corpus)
         emb_model.persist(embeddings_file)
-
         return emb_model
 
     @staticmethod
@@ -109,10 +108,10 @@ class ABAEManagerFactory:
         return aspect_model
 
     def make_embeddings(self, config: ABAEManagerConfig, override: bool = False) -> tuple[
-        WordEmbedding, AspectEmbedding]:
+        Word2VecWrapper, AspectEmbedding]:
 
         corpus = CorpusLoaderUtility(column_name="comments").load(config.corpus_file_path)
-        emb_model: WordEmbedding = self.make_emb_wrapper(corpus, config, override)
+        emb_model: Word2VecWrapper = self.make_emb_wrapper(corpus, config, override)
         aspect_model: AspectEmbedding = self.make_aspect_emb_wrapper(emb_model.weights(), config, override)
         return emb_model, aspect_model
 
