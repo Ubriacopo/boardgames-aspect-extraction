@@ -17,15 +17,17 @@ class LdaGeneratorConfig:
     alpha: float | str = 'symmetric'
     eta: float = 0.01
 
+
 class LdaModelGenerator:
-    def __init__(self, config: LdaGeneratorConfig):
+    def __init__(self, config: LdaGeneratorConfig, stop_words: list[str] = None):
         self.c: LdaGeneratorConfig = config
+        self.stop_words: list[str] = stop_words if stop_words is not None else []
 
     def make_model(self, existing_path: str = None) -> tuple[LdaModel, Dictionary]:
         if existing_path is not None:
             return LdaModel.load(existing_path)
 
-        lda_dataset = LdaDataset(pd.read_csv(self.c.corpus_file_path))
+        lda_dataset = LdaDataset(pd.read_csv(self.c.corpus_file_path), self.stop_words)
 
         return (
             # The LdaModel
