@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import keras
+import pandas as pd
 from keras import Optimizer
 from keras.src.callbacks import ModelCheckpoint
 from torch.utils.data import DataLoader
@@ -62,7 +63,12 @@ class ABAEManager:
         self.__train_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
         return self.__train_model
 
-    def train(self, ds: PositiveNegativeABAEDataset):
+    def train(self, dataset_path: str):
+        df = pd.read_csv(dataset_path)
+        vocabulary = self.generator.emb_model.vocabulary()
+
+        ds = PositiveNegativeABAEDataset(df, vocabulary, self.c.max_seq_len, self.c.negative_sample_size)
+
         # Just a utility function, one can directly work on the model.
         self.get_compiled_model(refresh=False)
         train_dataloader = DataLoader(dataset=ds, batch_size=self.c.batch_size, shuffle=True)
