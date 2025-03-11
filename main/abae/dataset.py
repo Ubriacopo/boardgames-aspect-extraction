@@ -9,7 +9,7 @@ from main.dataset.dataset import BaseBoardgameDataset
 
 # I could just name it "PaddedSequencesDataset"
 class ABAEDataset(BaseBoardgameDataset):
-    def __init__(self, dataset: DataFrame | list, vocabulary: dict, max_seq_length: int, use_lowest_pad: bool = False):
+    def __init__(self, dataset: DataFrame | list | str, vocabulary: dict, max_seq_length: int, use_lowest_pad: bool = False):
         self.max_seq_length = max_seq_length
 
         # If this flag is true the padding will go to the min between (max_seq_length, max(s)) where
@@ -38,7 +38,7 @@ class ABAEDataset(BaseBoardgameDataset):
 
 
 class PositiveNegativeABAEDataset(ABAEDataset):
-    def __init__(self, dataset: DataFrame | list, vocabulary: dict, max_seq_length: int,
+    def __init__(self, dataset: DataFrame | list | str, vocabulary: dict, max_seq_length: int,
                  negative_size: int, use_lowest_pad: bool = False):
         self.negative_size = negative_size
         super().__init__(dataset, vocabulary, max_seq_length, use_lowest_pad)

@@ -8,6 +8,7 @@ from keras import backend as B
 class Attention(Layer):
     """
     It is a self attention mechanism but not the same as the one faced in transformers.
+    As most mechanisms it is based on dot product.
     """
 
     def __init__(self, use_bias: bool = True, **kwargs):

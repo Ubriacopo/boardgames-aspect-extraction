@@ -236,7 +236,7 @@ class HyperparameterTuningManager:
     def __store_seen_configurations(self):
         write_object = []
         for config in self.seen_configurations:
-            # Frozen sets are not JSON Serializable, dictionaries are
+
             write_object.append(dict(config))
         # Persist the configurations to the file path.
         json.dump(write_object, open(self.configurations_path, "w"))

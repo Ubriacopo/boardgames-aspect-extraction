@@ -1,16 +1,30 @@
 import keras
+import numpy as np
 import torch
 from gensim import corpora
 from gensim.models import CoherenceModel
+from pandas import DataFrame
+from sklearn.metrics import silhouette_score
 from torch.nn.functional import normalize
+from torch.utils.data import DataLoader
+
+from main.abae.dataset import ABAEDataset
+from main.abae.model_manager import ABAEManager
 
 
 class ABAEEvaluationProcessor:
     # Classe utility per fare misurazioni metriche. This class is initialization only.
-    def __init__(self, word_embeddings, aspect_embeddings, inverse_vocabulary: dict):
-        self.__word_embeddings = word_embeddings
-        self.__aspect_embeddings = aspect_embeddings
-        self.__inverse_vocabulary = inverse_vocabulary
+    def __init__(self, manager: ABAEManager, test_ds: str | DataFrame):
+        self.manager = manager
+        self.df = test_ds  # df as for dataframe as the set is a dataframe or a path to a dataframe
+
+        model = manager.get_compiled_model()
+        # Word Vector (Like Gensim names)
+        self.__wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
+        # Aspect Vector (Like Gensim names)
+        self.__av = normalize(model.get_layer(index=7).w, dim=-1)
+
+        self.__inverse_vocabulary = manager.generator.emb_model.model.wv.index_to_key
 
     def extract_top_k_words(self, aspect_index: int, top_k: int, verbose=False) -> list:
         """
@@ -20,10 +34,10 @@ class ABAEEvaluationProcessor:
         @param verbose: If we want to print out the top k words for the current aspect.
         @return:
         """
-        if aspect_index >= len(self.__aspect_embeddings):
+        if aspect_index >= len(self.__av):
             raise IndexError("Aspect index out of range.")
 
-        similarity = self.__word_embeddings @ self.__aspect_embeddings[aspect_index]
+        similarity = self.__wv @ self.__av[aspect_index]
         sorted_words = torch.argsort(similarity, descending=True)
         for w in sorted_words[:top_k]:
             verbose and print("Word: ", self.__inverse_vocabulary[w], f"({similarity[w]})")
@@ -31,7 +45,7 @@ class ABAEEvaluationProcessor:
 
     def __prepare_aspects(self, top_n: int, aspects: list[list]):
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
-            n = len(self.__aspect_embeddings)
+            n = len(self.__av)
             # Extract top k words and map to only the word actual value and to list as the methods gives a generator.
             return [list(map(lambda x: x[0], self.extract_top_k_words(i, top_n))) for i in range(n)]
 
@@ -58,11 +72,18 @@ class ABAEEvaluationProcessor:
         dictionary = corpora.Dictionary(ds.to_list())
         return CoherenceModel(topics=aspects, texts=ds, dictionary=dictionary, coherence='c_v')
 
-    @staticmethod
-    def generate_for_model(model: keras.Model, inverse_vocabulary: dict):
-        word_embeddings = model.get_layer('word_embedding').weights[0].value.data
-        word_embeddings = normalize(word_embeddings, dim=-1)
-        aspect_embeddings = model.get_layer('weighted_aspect_embedding').w
-        aspect_embeddings = normalize(aspect_embeddings, dim=-1)
+    def silhouette_score(self):
+        if self.df is None:
+            raise AttributeError("test_ds is not set but is required to evaluate the silhouette score")
 
-        return ABAEEvaluationProcessor(word_embeddings, aspect_embeddings, inverse_vocabulary)
+        model = self.manager.get_compiled_model()
+        inference_model = self.manager.get_inference_model()
+
+        vocabulary = self.manager.generator.emb_model.vocabulary()
+        ds = ABAEDataset(self.df, vocabulary, self.manager.c.max_seq_len)
+
+        att, labels = inference_model.predict(DataLoader(ds, batch_size=self.manager.c.batch_size))
+
+        embeddings = model.get_layer(index=1)(np.stack(ds.dataset.map(lambda x: np.array(x))))
+        w_embs = [(att[..., np.newaxis] * emb.numpy()).sum(0) for emb, att in zip(embeddings, att)]
+        return silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine')
