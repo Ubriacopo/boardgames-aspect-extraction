@@ -376,6 +376,30 @@ class PreProcessingServiceFactory:
             test_frac
         )
 
+    @staticmethod
+    def pos_tagged_sentence_level(game_names: list, target_path: str,
+                                  test_frac: float = None) -> SimplePreProcessingService:
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+        nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        nlp.add_pipe("number_replacement_rule")
+
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+        return SimplePreProcessingService(
+            [
+                BagOfWordsFilterRule(kickstarter_words),
+                LanguageFilterRule(),
+                SentenceSplitterRule(),
+                ShortTextFilterRule(min_sentence_length=4),
+                WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                SpacyDocPOSProcessingRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
+            ],
+            target_path,
+            test_frac
+        )
+
 
 def prepare_game_names():
     game_names = pd.read_csv("../../resources/2024-08-18.csv")['Name']
