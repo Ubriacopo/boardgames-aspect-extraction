@@ -1,36 +1,9 @@
-from dataclasses import dataclass, fields
-
-import pandas as pd
 from gensim.corpora import Dictionary
 from gensim.models import LdaModel, LdaMulticore
 from pandas import DataFrame
 
+from main.lda.config import LdaGeneratorConfig
 from main.lda.dataset import LdaDataset
-
-
-@dataclass
-class LdaGeneratorConfig:
-    topics: int = 14
-    random_state: int = 42
-    chunk_size: int = 1000
-    passes: int = 10
-    alpha: float | str = 'symmetric'
-    eta: float = 0.01
-
-    @classmethod
-    def from_configuration(cls, object: dict):
-        instance = cls()
-        [instance.__setattr__(f.name, object[f.name]) for f in fields(instance) if f.name in object]
-        return instance
-
-    def from_dict(self, dictionary: dict):
-        if 'topics' in dictionary:
-            self.topics = dictionary['topics']
-
-        if 'random_state' in dictionary:
-            self.random_state = dictionary['random_state']
-
-        return self
 
 
 class LdaModelGenerator:
@@ -46,9 +19,10 @@ class LdaModelGenerator:
 
         return (
             # The LdaModel
-            LdaMulticore(corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics,
-                         alpha=self.c.alpha, eta=self.c.eta, passes=self.c.passes, workers=14,
-                         random_state=self.c.random_state, chunksize=self.c.chunk_size),
+            LdaMulticore(
+                corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha, eta=self.c.eta,
+                passes=self.c.passes, workers=14, random_state=self.c.random_state, chunksize=self.c.chunk_size
+            ),
 
             # The dictionary mapping num to word
             ds.dict

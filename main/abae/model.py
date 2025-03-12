@@ -1,22 +1,14 @@
 from abc import ABC
-from dataclasses import dataclass
 
 from keras import Layer, Input
-from keras.src.layers import Embedding, Dense, MultiHeadAttention
+from keras.src.layers import Embedding, Dense
 from keras.src.regularizers import OrthogonalRegularizer
 
+from main.abae.config import ABAEGeneratorConfig
 from main.embedding import Word2VecWrapper
 from main.abae.embedding import AspectEmbedding
 from main.abae.layer import Attention, Weight, Average, WeightedAspectEmbedding, MaxMargin
 from main.model import KerasModelGenerator
-
-
-@dataclass
-class ABAEGeneratorConfig:
-    max_seq_len: int = 80
-    negative_sample_size: int = 20
-    embedding_size: int = 100
-    aspect_size: int = 14
 
 
 class BaseABAE(KerasModelGenerator, ABC):

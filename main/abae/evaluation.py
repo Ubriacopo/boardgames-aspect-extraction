@@ -1,6 +1,8 @@
 import keras
 import numpy as np
+import pandas as pd
 import torch
+import swifter
 from gensim import corpora
 from gensim.models import CoherenceModel
 from pandas import DataFrame
@@ -16,13 +18,18 @@ class ABAEEvaluationProcessor:
     # Classe utility per fare misurazioni metriche. This class is initialization only.
     def __init__(self, manager: ABAEManager, test_ds: str | DataFrame):
         self.manager = manager
-        self.df = test_ds  # df as for dataframe as the set is a dataframe or a path to a dataframe
+        if type(test_ds) is str:
+            test_ds = pd.read_csv(test_ds)['comments'].swifter.apply(lambda x: x.split(' '))
+
+        self.df: DataFrame = test_ds  # df as for dataframe as the set is a dataframe or a path to a dataframe
 
         model = manager.get_compiled_model()
         # Word Vector (Like Gensim names)
         self.__wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
         # Aspect Vector (Like Gensim names)
         self.__av = normalize(model.get_layer(index=7).w, dim=-1)
+
+        self.__calculated_aspects: list = []
 
         self.__inverse_vocabulary = manager.generator.emb_model.model.wv.index_to_key
 
@@ -43,34 +50,37 @@ class ABAEEvaluationProcessor:
             verbose and print("Word: ", self.__inverse_vocabulary[w], f"({similarity[w]})")
             yield self.__inverse_vocabulary[w], similarity[w]
 
-    def __prepare_aspects(self, top_n: int, aspects: list[list]):
+    def __prepare_aspects(self, top_n: int):
+        if len(self.__calculated_aspects) != 0:
+            return self.__calculated_aspects
+        n = len(self.__av)  # Number of aspect vectors (av is named like wv - aspect_vector)
+        # Extract top k words and map to only the word actual value and to list as the methods gives a generator.
+        self.__calculated_aspects = [list(map(lambda x: x[0], self.extract_top_k_words(i, top_n))) for i in range(n)]
+        return self.__calculated_aspects
+
+    def u_mass_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
-            n = len(self.__av)
-            # Extract top k words and map to only the word actual value and to list as the methods gives a generator.
-            return [list(map(lambda x: x[0], self.extract_top_k_words(i, top_n))) for i in range(n)]
-
-        return aspects
-
-    def u_mass_coherence_model(self, top_n: int, ds, aspects: list[list] = None) -> CoherenceModel:
-        aspects = self.__prepare_aspects(top_n, aspects)
+            aspects = self.__prepare_aspects(top_n)
 
         dictionary = corpora.Dictionary()
         # BOW creation
-        corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in ds]
+        corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in self.df]
 
         return CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=top_n)
 
-    def c_npmi_coherence_model(self, top_n: int, ds, aspects: list[list] = None) -> CoherenceModel:
-        aspects = self.__prepare_aspects(top_n, aspects)
+    def c_npmi_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
+        if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
+            aspects = self.__prepare_aspects(top_n)
 
-        dictionary = corpora.Dictionary(ds.to_list())
-        return CoherenceModel(topics=aspects, texts=ds, dictionary=dictionary, coherence='c_npmi')
+        dictionary = corpora.Dictionary(self.df.to_list())
+        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_npmi')
 
-    def c_v_coherence_model(self, top_n: int, ds, aspects: list[list] = None) -> CoherenceModel:
-        aspects = self.__prepare_aspects(top_n, aspects)
+    def c_v_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
+        if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
+            aspects = self.__prepare_aspects(top_n)
 
-        dictionary = corpora.Dictionary(ds.to_list())
-        return CoherenceModel(topics=aspects, texts=ds, dictionary=dictionary, coherence='c_v')
+        dictionary = corpora.Dictionary(self.df.to_list())
+        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_v')
 
     def silhouette_score(self):
         if self.df is None:

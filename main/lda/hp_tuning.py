@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from uuid import uuid4
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,8 @@ from gensim.models import CoherenceModel
 from pandas import DataFrame
 
 from main.hp_tuning import HyperparametersConfigGenerator, TuningProcedure
-from main.lda.model import LdaGeneratorConfig, LdaModelGenerator
+from main.lda.model import LdaModelGenerator
+from main.lda.config import LdaGeneratorConfig
 
 
 class LDATuningProcedure(TuningProcedure):
@@ -28,14 +30,17 @@ class LDATuningProcedure(TuningProcedure):
                 print("No other configurations are available. Create a new procedure with updated confgiurations")
                 break  # We cannot proceed if the generator cant generate any more elements
 
-            i_results = dict(config=config, cv_coh={t: [] for t in self.top}, npmi_coh={t: [] for t in self.top},
-                             perplexity=[])
+            i_results = dict(
+                config=config, cv_coh={t: [] for t in self.top}, npmi_coh={t: [] for t in self.top}, perplexity=[]
+            )
 
             for k in range(self.folds):
+                run_id = uuid4()
                 validation_split: DataFrame = folds[k]  # On what to compute the validation metrics
                 train = pd.concat([folds[index] for index in range(len(folds)) if index != k])
                 print(f"Running fold = {k}")
-                model, dictionary = LdaModelGenerator(LdaGeneratorConfig.from_configuration(config)).make_model(train)
+                lda_config = LdaGeneratorConfig.from_configuration(str(run_id), config)
+                model, dictionary = LdaModelGenerator(lda_config).make_model(train)
                 print("Model generation over, evaluating...")
 
                 texts = validation_split['comments'].apply(lambda x: x.split(' '))
