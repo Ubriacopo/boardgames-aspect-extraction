@@ -109,6 +109,7 @@ class ABAEManager:
             # Every epoch the model is persisted on the FS. (tmp)
             ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.model_name}.keras", monitor='max_margin'),
             EarlyStopping(monitor='loss', baseline=8, start_from_epoch=2),  # It for sure is bad
+            EarlyStopping(monitor='loss', baseline=5, start_from_epoch=3),
             EarlyStopping(monitor='loss', start_from_epoch=4, patience=3)
         ])
 
