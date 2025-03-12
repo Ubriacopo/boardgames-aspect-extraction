@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 
 import pandas as pd
 from gensim.corpora import Dictionary
@@ -16,6 +16,12 @@ class LdaGeneratorConfig:
     passes: int = 10
     alpha: float | str = 'symmetric'
     eta: float = 0.01
+
+    @classmethod
+    def from_configuration(cls, object: dict):
+        instance = cls()
+        [instance.__setattr__(f.name, object[f.name]) for f in fields(instance) if f.name in object]
+        return instance
 
     def from_dict(self, dictionary: dict):
         if 'topics' in dictionary:

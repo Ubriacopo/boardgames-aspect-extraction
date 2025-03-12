@@ -3,6 +3,8 @@ from abc import abstractmethod, ABC
 from pathlib import Path
 from random import Random
 
+from pandas import DataFrame
+
 
 class TunableParameter:
     @abstractmethod
@@ -119,3 +121,12 @@ class UniqueParametersConfigFsGenerator(UniqueParametersConfigGenerator):
         write_object = [dict(config) for config in self.seen_configurations]
         # Persist the configurations to the file path.
         json.dump(write_object, open(self.configurations_path, "w"))
+
+
+class TuningProcedure(ABC):
+    def __init__(self, generator: HyperparametersConfigGenerator):
+        self.generator = generator
+
+    @abstractmethod
+    def run(self, data: DataFrame, configurations: int) -> list:
+        pass
