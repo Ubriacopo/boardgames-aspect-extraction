@@ -1,16 +1,67 @@
 \section{Introduction}
 
-Boardgames are fun and very various is many different aspects but some common elements most player take in account
-are of course: [,,,] (lista puntata come breve descrizione).
-The goal of this project is to extract from a corpus of reviews scrapped from BGG^ref, a web dp platform, these min grained topics.
+Playing boardgames has become really popular hobby and business in the last years thanks to some history defining
+games like Settlers of Catan and the later 7 Wonders.
 
-The use of the word aspect is not a caso a s it is a common task in aspect sentiment analysis.
-An aspect is [def]
+Those games work on mechanics and differe
 
-The dataset generation led to a un unsupervised learning problem which has issues ... metrics bla bla..
-For solving the problem I chose to approach different strategies basing on approaches seen in aspect extraction community...
+Root is a famous game known for its complexity.
+The games rulebook is considered a law and tries to be as scrict as possible in defining the game structure.
+It is also other games like Uno are so simple that the game invites you in introducing some house rules.
 
-\subsection{Experimental Setup}
+The field of boardgames is very broad in its different colors but at the core some elements are shared and
+identifying those, is the goal of this project.
+By scrapping review from the web platform BBG and creating a corpus this project aims in identifying the following aspects
+^pie di pagina con scirtto for a deeper look on definitions link to goblinpedia:
+\begin{itemize}
+    \item[Luck] The degree of luck involved in the game.
+    Most games involve some form of luck, any dice game, while other not at all like \'Guards of Atlantis 2\'.
+    \item[Bookkeeping] How much a player has to keep focus and track on resources or element that involve the winning condition
+    \item[Downtime] How much the player has to wait between interacting with the game between turns if there is any
+    \item[Interaction] Degree of influence of one player w.r.t to the others
+    \item[Bash the leader] If and when to focus on the winning player to avoid him winning.
+    A game that has common situations of bashing is Root.
+    \item[Complicated vs Complex] The complexity is a difficulty that does not scaled down with the skill while
+    a complicated game has only a step initial learning curve.
+\end{itemize}
+
+Identifying aspects could be a task for topic modelling tasks but focused on a more finely ?parola? level.
+This problem shares many similiarities with the restaurant revies one ?scrivi meglio? seen in many Aspect Extraction tasks.
+In order to solve the problem I decided to experiment two different routes, one by applying LDA with minor ?accorgimenti?
+and one by training an ABAE^ref model built from scratch.
+
+The trickiest part of the experiment is the lack of ground truth that brings us to an unsupervised learning framework.
+-- riscrivi
+In order to overcome this problem we used some commonly used clustering metrics to be able to draw some sort of conlcusion.
+
+\subsection{Experimental Setup and Development Environment}
+To make full use of the GPU power, which is very effective for machine learning, CUDA drivers were needed.
+The project ran on CUDA 11.8.
+For designing the neural networks Keras was used.
+Since its latest major release (3.0) the backend, which handles the calculations, is selectable.
+I chose PyTorch as it is very popular among the research community.
+Libraries and other references are listed in the Github repository[4].
+
+\begin{center}
+    \begin{tabular}{||c c c c||}
+        \hline
+        Component & Model \\ [0.5ex]
+        \hline\hline
+        GPU & NVIDIA GeForce RTX3070Ti (8GB VRAM) \\
+        \hline
+        CPU & AMD Ryzen 7 5800x 8-core processor x16 \\
+        \hline
+        RAM & 32 GB (2x16GB) DDR4 \\
+        \hline
+        OS & Windows 11 \\
+        \hline
+        5 & 88 & 788 & 6344 \\ [1ex]
+        \hline
+    \end{tabular}
+\end{center}
+
+In order to replicate at best the results obtained for the project we give a brief
+on the machine used and its environments.
 
 \paragraph{Machine specs}
 
