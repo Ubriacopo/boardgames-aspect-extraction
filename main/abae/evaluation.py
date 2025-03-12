@@ -73,14 +73,14 @@ class ABAEEvaluationProcessor:
             aspects = self.__prepare_aspects(top_n)
 
         dictionary = corpora.Dictionary(self.df.to_list())
-        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_npmi')
+        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_npmi', topn=top_n)
 
     def c_v_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
             aspects = self.__prepare_aspects(top_n)
 
         dictionary = corpora.Dictionary(self.df.to_list())
-        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_v')
+        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_v', topn=top_n)
 
     def silhouette_score(self):
         if self.df is None:
@@ -95,5 +95,5 @@ class ABAEEvaluationProcessor:
         att, labels = inference_model.predict(DataLoader(ds, batch_size=self.manager.c.batch_size))
 
         embeddings = model.get_layer(index=1)(np.stack(ds.dataset.map(lambda x: np.array(x))))
-        w_embs = [(att[..., np.newaxis] * emb.numpy()).sum(0) for emb, att in zip(embeddings, att)]
+        w_embs = [(att[..., np.newaxis] * emb.cpu().numpy()).sum(0) for emb, att in zip(embeddings, att)]
         return silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine')
