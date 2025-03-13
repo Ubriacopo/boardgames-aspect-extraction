@@ -1,3 +1,4 @@
+import warnings
 from pathlib import Path
 
 import keras
@@ -14,6 +15,28 @@ from main.embedding import Word2VecWrapper
 from main.abae.embedding import AspectEmbedding
 from main.abae.model import BaseABAE, ABAE
 from main.utils import CorpusLoaderUtility
+
+
+class MetricAboveThresholdStopping(EarlyStopping):
+    def __init__(self, threshold, **kwargs):
+        super(MetricAboveThresholdStopping, self).__init__(**kwargs)
+        self.threshold = threshold  # threshold for validation loss
+
+    def on_epoch_end(self, epoch, logs=None):
+        current = logs.get(self.monitor)
+        if current is None:
+            warnings.warn(
+                'Early stopping conditioned on metric `%s` '
+                'which is not available. Available metrics are: %s' %
+                (self.monitor, ','.join(list(logs.keys()))), RuntimeWarning
+            )
+            return
+
+        # implement your own logic here
+        if (epoch >= self.start_from_epoch) & (current >= self.threshold):
+            print(f"\nEarly stopping triggered by metric {self.monitor} as value {current} > {self.threshold}")
+            self.stopped_epoch = epoch
+            self.model.stop_training = True
 
 
 class ABAEManager:
@@ -82,10 +105,11 @@ class ABAEManager:
 
         history = self.__train_model.fit(train_dataloader, epochs=self.c.epochs, verbose=verbose, callbacks=[
             # Every epoch the model is persisted on the FS. (tmp)
-            ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin'),
-            EarlyStopping(monitor='loss', baseline=8, start_from_epoch=2),  # It for sure is bad
-            EarlyStopping(monitor='loss', baseline=5, start_from_epoch=3),
-            EarlyStopping(monitor='loss', start_from_epoch=4, patience=3)
+            ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin_loss'),
+            MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=8., start_from_epoch=1),
+            # It for sure is bad
+            MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=6., start_from_epoch=6),
+            EarlyStopping(monitor='max_margin_loss', start_from_epoch=4, patience=3, mode='min')
         ])
 
         self.__train_model.save(self.considered_path)
