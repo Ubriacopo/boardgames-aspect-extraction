@@ -19,7 +19,7 @@ class LDATuningProcedure(TuningProcedure):
         self.top: list = top if top is not None else []
         self.results: list = []  # Where results of runs are stored with associated config
 
-    def run(self, data: DataFrame, configurations: int):
+    def run(self, data: DataFrame, configurations: int, custom_stopwords: list = None):
         self.results = []
         folds = np.array_split(data, self.folds)
 

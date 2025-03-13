@@ -51,7 +51,7 @@ class ABAEEvaluationProcessor:
             yield self.__inverse_vocabulary[w], similarity[w]
 
     def __prepare_aspects(self, top_n: int):
-        if len(self.__calculated_aspects) != 0:
+        if len(self.__calculated_aspects) >= top_n:
             return self.__calculated_aspects
         n = len(self.__av)  # Number of aspect vectors (av is named like wv - aspect_vector)
         # Extract top k words and map to only the word actual value and to list as the methods gives a generator.
@@ -64,23 +64,24 @@ class ABAEEvaluationProcessor:
 
         dictionary = corpora.Dictionary()
         # BOW creation
-        corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in self.df]
+        df = self.df['comments'].swifter.apply(lambda x: x.split(' '))
+        corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in df]
 
         return CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=top_n)
 
     def c_npmi_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
             aspects = self.__prepare_aspects(top_n)
-
-        dictionary = corpora.Dictionary(self.df.to_list())
-        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_npmi', topn=top_n)
+        df = self.df['comments'].swifter.apply(lambda x: x.split(' '))
+        dictionary = corpora.Dictionary(df.to_list())
+        return CoherenceModel(topics=aspects, texts=df, dictionary=dictionary, coherence='c_npmi', topn=top_n)
 
     def c_v_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
             aspects = self.__prepare_aspects(top_n)
-
-        dictionary = corpora.Dictionary(self.df.to_list())
-        return CoherenceModel(topics=aspects, texts=self.df, dictionary=dictionary, coherence='c_v', topn=top_n)
+        df = self.df['comments'].swifter.apply(lambda x: x.split(' '))
+        dictionary = corpora.Dictionary(df.to_list())
+        return CoherenceModel(topics=aspects, texts=df, dictionary=dictionary, coherence='c_v', topn=top_n)
 
     def silhouette_score(self):
         if self.df is None:
