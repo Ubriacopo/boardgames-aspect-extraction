@@ -1,10 +1,42 @@
 \section{Research question and methodology}
+
+The task for which I developed a solution falls is a classification problem.
+To identify the aspects defined by the requirements we have to first retrieve a dataset.
+
+Before beginning building a corpus was necessary.
+
+
 The problem defined more rigorously.
-We want to elaborate a classification model that given a sentence/review is able to identify one of the classes defined.
+We want to elaborate a classification model thatfsdasd given a sentence/review is able to identify one of the classes defined.
 ## formal definition ##
 
 \subsection{Dataset and pre-processing}
-why
+BGG offers a simple yet effective API to scrap data from the platform. The API lacks only a listing method
+for all boardgames, reason for the existence of a dedicated game information repository ?todo ntoa pie pagina con link?.
+The comments scrapped can be subject to a special formatting and, while it is possible to find the country of origin
+of a player if he decides to share it, the language of a comment is not explicit.
+
+The scrapped dataset before any processing is available for download on: %todo link
+
+To tackle this in the pre-processing pipeline we filter for English only comments.
+
+Reviews are processed in different pipelines composed of the same base elements to explore the best possible representation:
+\begin{itemize}
+    \item {\textit{default}}: The default pipeline runs the following steps:[]
+    \item {\textit{pos_noun}}:
+\end{itemize}
+
+Only in domain knowledge introduced was relative to "Kickstarter". The data downloaded are reviews and in BGG a good portion
+of reviews do not actually give an insight on the game aspects we are inspecting but focus strictly on the experience
+and quality of the product coming from the popular crowdfunding platform.
+To avoid having many redundant and low information records in the dataset, giving more space to possible informative ones,
+the simple heuristic of filtering out any review containing some keywords related to it (e.g. "ks", "pledge").
+
+% todo tabella di review d'esempio kickstarter bad e un altra e il risultato di processing accanto
+Reviews are in every iterations split on words recognized and transformed to their lemma.
+Game names + dates con tag
+
+whydsf
 what
 -> approaches
 noun only

@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 from typing import Final
-import spacy_transformers
 import pandas as pd
 from pandas import DataFrame, Series
 
