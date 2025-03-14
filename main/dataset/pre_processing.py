@@ -121,6 +121,16 @@ class MatcherReplacementRuleOnLemma:
         matcher.add("<GAME_NAME>", games_docs)
         return MatcherReplacementRuleOnLemma(matcher, "<GAME_NAME>")
 
+    @staticmethod
+    @Language.factory("player_count_replacement_rule")
+    def game_names_replacement_rule(nlp: Language, name: str):
+        matcher = Matcher(nlp.vocab)
+        matcher.add("<PLAYER_COUNT>", [
+            [{"TEXT": {"REGEX": r"\b\d{1,2}-\d{1,2}p\b"}}],
+            [{"TEXT": {"REGEX": r"\b\d{1,2}p\b"}}],
+        ])
+        return MatcherReplacementRuleOnLemma(matcher, "<PLAYER_COUNT>")
+
 
 class SpacyProcessingRule(PreProcessingRule):
     def __init__(self, nlp: Language):
@@ -137,6 +147,19 @@ class SpacyDocDefaultFilterRule(PreProcessingRule):
 
     def is_invalid_token(self, t: Token) -> bool:
         return (not t.is_alpha and t.lemma_ not in self.valid_tokens) or t.is_currency or t.is_stop or t.is_space
+
+    def process_rule(self, entry: Doc) -> str | list | None:
+        return [t.lemma_.lower() for t in entry if not self.is_invalid_token(t)]
+
+
+class SpacyDocFilterRuleKeepNumbers(PreProcessingRule):
+    def __init__(self, valid_tokens: list[str] = None):
+        super().__init__()
+        self.valid_tokens = [] if valid_tokens is None else valid_tokens
+
+    def is_invalid_token(self, t: Token) -> bool:
+        return (
+                not t.is_alpha and not t.like_num and t.lemma_ not in self.valid_tokens) or t.is_currency or t.is_stop or t.is_space
 
     def process_rule(self, entry: Doc) -> str | list | None:
         return [t.lemma_.lower() for t in entry if not self.is_invalid_token(t)]
@@ -268,6 +291,7 @@ class PreProcessingServiceFactory:
     def default_with_conll(game_names: list, target_path: str, test_fraction: float = None):
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        # nlp.add_pipe("player_count_replacement_rule") Too bad I thought of this step after tuning most models!
         nlp.add_pipe("number_replacement_rule")
         nlp.add_pipe("conll_formatter", last=True)
 
@@ -303,6 +327,7 @@ class PreProcessingServiceFactory:
         """
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        # nlp.add_pipe("player_count_replacement_rule") Too bad I thought of this step after tuning most models!
         nlp.add_pipe("number_replacement_rule")
 
         kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
@@ -335,6 +360,7 @@ class PreProcessingServiceFactory:
         """
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        # nlp.add_pipe("player_count_replacement_rule") Too bad I thought of this step after tuning most models!
         nlp.add_pipe("number_replacement_rule")
 
         kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
@@ -356,7 +382,9 @@ class PreProcessingServiceFactory:
     @staticmethod
     def pos_tagged(game_names: list, target_path: str, test_frac: float = None) -> SimplePreProcessingService:
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        # nlp.add_pipe("player_count_replacement_rule") Too bad I thought of this step after tuning most models!
         nlp.add_pipe("number_replacement_rule")
 
         kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
@@ -380,7 +408,9 @@ class PreProcessingServiceFactory:
     def pos_tagged_sentence_level(game_names: list, target_path: str,
                                   test_frac: float = None) -> SimplePreProcessingService:
         nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+
         nlp.add_pipe("game_name_replacement_rule", config={'game_names': game_names}, last=True)
+        # nlp.add_pipe("player_count_replacement_rule") Too bad I thought of this step after tuning most models!
         nlp.add_pipe("number_replacement_rule")
 
         kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
@@ -393,6 +423,26 @@ class PreProcessingServiceFactory:
                 WordNoiseRemoverRule(),
                 SpacyProcessingRule(nlp),
                 SpacyDocPOSProcessingRule(['<UNK>', '<GAME_NAME>', '<NUM>']),
+                ShortTextFilterRule(min_sentence_length=4),
+                FromDocToTextComposerRule()
+            ],
+            target_path,
+            test_frac
+        )
+
+    @staticmethod
+    def default_no_replacement(target_path: str, test_frac: float = None) -> SimplePreProcessingService:
+        nlp = spacy.load("en_core_web_md")  # Medium is the best tradeoff spot for us.
+        kickstarter_words = ['ks', 'pledge', 'kickstarter', 'kickstarted', 'kickstart', 'gamefound', 'crowdfunding']
+        nlp.add_pipe("player_count_replacement_rule")
+        return SimplePreProcessingService(
+            [
+                BagOfWordsFilterRule(kickstarter_words),
+                LanguageFilterRule(),
+                ShortTextFilterRule(min_sentence_length=4),
+                WordNoiseRemoverRule(),
+                SpacyProcessingRule(nlp),
+                SpacyDocDefaultFilterRule(),
                 ShortTextFilterRule(min_sentence_length=4),
                 FromDocToTextComposerRule()
             ],

@@ -11,42 +11,60 @@ We want to elaborate a classification model thatfsdasd given a sentence/review i
 ## formal definition ##
 
 \subsection{Dataset and pre-processing}
-BGG offers a simple yet effective API to scrap data from the platform. The API lacks only a listing method
-for all boardgames, reason for the existence of a dedicated game information repository ?todo ntoa pie pagina con link?.
+BGG offers a simple yet effective API to scrap data from their platform.
+The API lacks a direct method for listing all boardgames, reason for the existence of a dedicated game information
+repository ?todo ntoa pie pagina con link?.
+
+To tackle possible issues of the raw data various different pre-processing pipelines were designed using modular
+processing components combined.
 The comments scrapped can be subject to a special formatting and, while it is possible to find the country of origin
-of a player if he decides to share it, the language of a comment is not explicit.
+of a reviewer if he decides to share it, the language of a comment is not explicit.
+Thus, all pipelines share a filter on the language of the review, removing all non english ones.
 
-The scrapped dataset before any processing is available for download on: %todo link
+A further step in the processing pipeline which also is the only one introducing in domain knowledge introduced was relative
+to the removal of "Kickstarter" relative reviews.
+A good portion of the reviews on BGG do not actually give an insight on the game aspects we are inspecting,
+but focus strictly on the experience and quality of service of the product coming from a popular crowdfunding platform like "Kickstarter".
+To avoid having many redundant and low information records in the dataset, and so give more space to possible informative ones,
+we apply the simple heuristic of filtering out any review containing some keywords related to it (e.g. "ks", "pledge").
 
-To tackle this in the pre-processing pipeline we filter for English only comments.
+Reviews are in every iterations split on words recognized and transformed to their lemma thanks to a pre-trained
+POS tagger and processor: \textit{spacy}. To furhter reduce redundant and undesired information the pre-processing pipeline
+maps game names and numbers to generic tags.
+Another step all pipelines have in common is to filter out too short review as we expect to hardly learn anything new from them.
 
-Reviews are processed in different pipelines composed of the same base elements to explore the best possible representation:
+The final designed and used pipelines are:
 \begin{itemize}
-    \item {\textit{default}}: The default pipeline runs the following steps:[]
-    \item {\textit{pos_noun}}:
+    \item {\textit{default}}: The default pipeline refers to ABAE specification.
+
+    \item {\textit{NOUN}}: Takes a spin on the default pipeline by filtering all words that are not recognized as nouns
+    by the used tagger as discussed in % todo ref a LDA che spiega perche allinzio
+
+    \item {\textit{NOUN-sentence}}: Works like NOUN but at very start of the process the review is split on sentences.
+    The splitting creates branches that all work and produce single entries for the processed dataset.
+
+    \item {\textit{default-sentence}}: Variation on default like NOUN-sentence.
 \end{itemize}
 
-Only in domain knowledge introduced was relative to "Kickstarter". The data downloaded are reviews and in BGG a good portion
-of reviews do not actually give an insight on the game aspects we are inspecting but focus strictly on the experience
-and quality of the product coming from the popular crowdfunding platform.
-To avoid having many redundant and low information records in the dataset, giving more space to possible informative ones,
-the simple heuristic of filtering out any review containing some keywords related to it (e.g. "ks", "pledge").
-
-% todo tabella di review d'esempio kickstarter bad e un altra e il risultato di processing accanto
-Reviews are in every iterations split on words recognized and transformed to their lemma.
-Game names + dates con tag
-
-whydsf
-what
--> approaches
-noun only
-
-scaraped from BBG api
-pipeline in dettaglio su dati scaricati
+All these pipelines have been used for an initial evaluation of the models but only for the LDA hyperparameter
+tuning the work progressed on more than one of them. This is simply because ABAE is very time consuming while LDA
+gave us the possibility to explore more various data types.
 
 \subsection{Developed models}
+Once the processed dataset generation has been completed we try the two different approaches to see the best way
+to process for each task. Both starting points have been intialized with a 'standard' set of hyperparameters
+to later be tuned.
 
 \subsection{LDA}
+- default first apporach
+- why K is important and why we started with 14
+- how tuning worked -> focus on K and not other parameters as there are some that are more important
+- metrics used for eavluation
 
 \subsection{ABAE}
-custom implementation of the paper
+- loss fn ->
+- optimizer -> fixed lr flexible
+- batch size -> why it is important
+- epochs low for contraint reasons
+- how tuning worked (random search)
+- metrics used for evaluation
