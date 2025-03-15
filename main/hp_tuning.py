@@ -15,6 +15,13 @@ class TunableParameter:
         return self.get_value()
 
 
+class FixedTunableParameter(TunableParameter):
+    def __init__(self, value):
+        self.value = value
+
+    def get_value(self):
+        return self.value
+
 class RandomTunableParameter(TunableParameter, ABC):
     def __init__(self, seed: int):
         self.random_generator = Random(seed)

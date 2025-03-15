@@ -5,7 +5,7 @@ from typing import Final
 import pandas as pd
 from pandas import DataFrame, Series
 
-from core.service.bgg_retriever_service import BggRetrieverService
+from main.dataset.bgg_retriever_service import BggRetrieverService
 
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG, datefmt='%Y-%m-%d %H:%M:%S')
 

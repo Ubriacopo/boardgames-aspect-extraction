@@ -20,7 +20,7 @@ class AspectEmbedding:
         pickle.dump(self.model, open(file_path, "wb"))
 
     def generate(self, embedding_weights):
-        print("Creating new model")
+        print("Creating new Aspect embedding model\n")
         self.model = KMeans(n_clusters=self.aspect_size, verbose=False)
         self.model.fit(embedding_weights)
 

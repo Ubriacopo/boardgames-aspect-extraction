@@ -34,7 +34,7 @@ class LDATuningProcedure(TuningProcedure):
             i_results = dict(
                 config=config, cv_coh={t: [] for t in self.top}, npmi_coh={t: [] for t in self.top}, perplexity=[]
             )
-
+            print(f"Working on configuration: {config}")
             for k in range(self.folds):
                 run_id = uuid4()
                 validation_split: DataFrame = folds[k]  # On what to compute the validation metrics

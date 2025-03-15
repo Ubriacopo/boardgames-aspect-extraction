@@ -46,9 +46,14 @@ The final designed and used pipelines are:
     \item {\textit{default-sentence}}: Variation on default like NOUN-sentence.
 \end{itemize}
 
+After running a pipeline any duplicated review is discarded to avoid having repetitions and further introducing of
+bias in the dataset.
 All these pipelines have been used for an initial evaluation of the models but only for the LDA hyperparameter
 tuning the work progressed on more than one of them. This is simply because ABAE is very time consuming while LDA
 gave us the possibility to explore more various data types.
+
+\subsection{Metrics}
+% todo
 
 \subsection{Developed models}
 Once the processed dataset generation has been completed we try the two different approaches to see the best way
@@ -56,6 +61,16 @@ to process for each task. Both starting points have been intialized with a 'stan
 to later be tuned.
 
 \subsection{LDA}
+The model has at first been trained with a smaller dataset of around 80k records in hope to be able to
+capture the desired information with less information.
+Of the pipelines used the most promising in terms of coherence were the non sentence based models but,
+expecting to extract more global features than the locality of the ones given by sentence splitting I
+decided to pursuit two paths: NOUN and default-sentence datasets.
+While the goal of the project is not much on the quality of the results to actually be able to draw
+some conclusions a hyperparameter tuning procedure has been run focusing for LDA on its most important parameter:
+the number of topics K.
+
+
 - default first apporach
 - why K is important and why we started with 14
 - how tuning worked -> focus on K and not other parameters as there are some that are more important

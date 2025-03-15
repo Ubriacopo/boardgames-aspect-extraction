@@ -1,3 +1,5 @@
+import os
+
 from gensim.corpora import Dictionary
 from gensim.models import LdaModel, LdaMulticore
 from pandas import DataFrame
@@ -16,12 +18,11 @@ class LdaModelGenerator:
             return LdaModel.load(existing_path)
 
         ds = LdaDataset(corpus, self.stop_words)
-
         return (
             # The LdaModel
             LdaMulticore(
-                corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha, eta=self.c.eta,
-                passes=self.c.passes, workers=14, random_state=self.c.random_state, chunksize=self.c.chunk_size
+                corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha,
+                eta=self.c.eta, passes=self.c.passes, random_state=self.c.random_state
             ),
 
             # The dictionary mapping num to word

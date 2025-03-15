@@ -1,3 +1,4 @@
+import os
 import warnings
 from pathlib import Path
 
@@ -11,6 +12,7 @@ from torch.utils.data import DataLoader
 from core.utils import max_margin_loss
 from main.abae.config import ABAEManagerConfig
 from main.abae.dataset import PositiveNegativeABAEDataset
+from main.abae.evaluation import ABAEEvaluationProcessor
 from main.embedding import Word2VecWrapper
 from main.abae.embedding import AspectEmbedding
 from main.abae.model import BaseABAE, ABAE
@@ -82,14 +84,15 @@ class ABAEManager:
 
         return self.__inference_model
 
-    def get_compiled_model(self, optimizer: str | Optimizer = 'adam', load_existing: bool = False,
-                           refresh: bool = True):
+    def get_compiled_model(self, opt: str | Optimizer = 'adam', load_existing: bool = False, refresh: bool = True):
         if not refresh and self.__train_model is not None:
+            # We want to get the current model directly not a new instance
             return self.__train_model
 
         path = self.considered_path if load_existing else None
+        print(f"Generating a new compiled model from {'scratch' if path is None else 'fs'}")
         self.__train_model = self.generator.generate_training_model(self.custom_objects, path)
-        self.__train_model.compile(optimizer=optimizer, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
+        self.__train_model.compile(optimizer=opt, loss=[max_margin_loss], metrics={'max_margin': max_margin_loss})
         return self.__train_model
 
     def train(self, df: str | DataFrame, verbose: int = 1):
@@ -100,9 +103,12 @@ class ABAEManager:
         ds = PositiveNegativeABAEDataset(df, vocabulary, self.c.max_seq_len, self.c.negative_sample_size)
 
         # Just a utility function, one can directly work on the model.
-        self.get_compiled_model(refresh=False, optimizer=keras.optimizers.Adam(learning_rate=self.c.learning_rate))
-        train_dataloader = DataLoader(dataset=ds, batch_size=self.c.batch_size, shuffle=True)
-
+        self.get_compiled_model(refresh=False, opt=keras.optimizers.Adam(learning_rate=self.c.learning_rate))
+        num_cores = os.cpu_count()
+        train_dataloader = DataLoader(
+            dataset=ds, batch_size=self.c.batch_size, shuffle=True, num_workers=int(num_cores / 2), pin_memory=True
+        )
+        print("Training is starting:")
         history = self.__train_model.fit(train_dataloader, epochs=self.c.epochs, verbose=verbose, callbacks=[
             # Every epoch the model is persisted on the FS. (tmp)
             ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin_loss'),
@@ -114,3 +120,29 @@ class ABAEManager:
 
         self.__train_model.save(self.considered_path)
         return history, self.get_inference_model(refresh=True)
+
+    def evaluate(self, tops: list[int], test_corpus_path: str):
+        # Where run results are stored.
+        results = dict(npmi_coh=[], cv_coh=[], top=tops)
+
+        # Test set max_margin evaluation
+        vocabulary = self.generator.emb_model.vocabulary()
+        max_seq_length = self.c.max_seq_len
+        negative_size = self.c.negative_sample_size
+        test_ds = PositiveNegativeABAEDataset(test_corpus_path, vocabulary, max_seq_length, negative_size)
+        results['loss'] = self.__train_model.evaluate(DataLoader(test_ds, batch_size=self.c.batch_size))
+
+        # Other metrics
+        inverse_vocab = self.generator.emb_model.model.wv.index_to_key
+        vocab = self.generator.emb_model.vocabulary()
+        ev_processor = ABAEEvaluationProcessor(
+            test_corpus_path, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
+        )
+
+        results['silhouette_score'] = ev_processor.silhouette_score(self.__train_model, self.__inference_model)
+
+        for top in results['top']:
+            results['npmi_coh'].append(ev_processor.c_npmi_coherence_model(top_n=top).get_coherence())
+            results['cv_coh'].append(ev_processor.c_v_coherence_model(top_n=top).get_coherence())
+
+        return results
