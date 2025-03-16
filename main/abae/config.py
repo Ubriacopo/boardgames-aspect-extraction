@@ -14,13 +14,13 @@ class ABAEGeneratorConfig(BaseConfig):
 
 @dataclass
 class ABAEManagerConfig(ABAEGeneratorConfig):
-    min_word_count: int = 5
-    max_vocab_size: int | None = None
-    batch_size: int = 128
-    epochs: int = 15
+    min_word_count: int = 5  # How often a word has to occur in the corpus to not be invalidated
+    max_vocab_size: int | None = None  # Max number of distinct terms in the vocab size
+    batch_size: int = 128 # Training step batch size
+    epochs: int = 15 # Passes on full dataset during training
     # My ABAE implementation like the paper proposed only uses Adam
-    learning_rate: float = 1e-3
-    output_folder: str = "./output"
+    learning_rate: float = 1e-3 # adam learning-rate
+    output_folder: str = "./output" # In what folder the model is stored
 
     def output_path(self):
         path = f"{self.output_folder}/{self.name}"

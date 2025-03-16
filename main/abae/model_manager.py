@@ -111,7 +111,7 @@ class ABAEManager:
         print("Training is starting:")
         history = self.__train_model.fit(train_dataloader, epochs=self.c.epochs, verbose=verbose, callbacks=[
             # Every epoch the model is persisted on the FS. (tmp)
-            ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin_loss'),
+            # ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin_loss'),
             MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=10., start_from_epoch=1),
             # It for sure is bad
             MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=6.5, start_from_epoch=6),
