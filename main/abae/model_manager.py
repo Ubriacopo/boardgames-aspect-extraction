@@ -114,35 +114,35 @@ class ABAEManager:
             # ModelCheckpoint(filepath=f"./tmp/ckpt/{self.c.name}.keras", monitor='max_margin_loss'),
             MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=10., start_from_epoch=1),
             # It for sure is bad
-            MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=6.5, start_from_epoch=6),
+            MetricAboveThresholdStopping(monitor='max_margin_loss', threshold=8, start_from_epoch=5),
             EarlyStopping(monitor='max_margin_loss', start_from_epoch=4, patience=3, mode='min')
         ])
 
         self.__train_model.save(self.considered_path)
         return history, self.get_inference_model(refresh=True)
 
-    def evaluate(self, tops: list[int], test_corpus_path: str):
+    def evaluate(self, tops: list[int], test_corpus: str | pd.DataFrame):
         # Where run results are stored.
-        results = dict(npmi_coh=[], cv_coh=[], top=tops)
+        results = dict(coherence=[], top=tops)
 
         # Test set max_margin evaluation
         vocabulary = self.generator.emb_model.vocabulary()
         max_seq_length = self.c.max_seq_len
         negative_size = self.c.negative_sample_size
-        test_ds = PositiveNegativeABAEDataset(test_corpus_path, vocabulary, max_seq_length, negative_size)
+        test_ds = PositiveNegativeABAEDataset(test_corpus, vocabulary, max_seq_length, negative_size)
         results['loss'] = self.__train_model.evaluate(DataLoader(test_ds, batch_size=self.c.batch_size))
 
         # Other metrics
         inverse_vocab = self.generator.emb_model.model.wv.index_to_key
         vocab = self.generator.emb_model.vocabulary()
         ev_processor = ABAEEvaluationProcessor(
-            test_corpus_path, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
+            test_corpus, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
         )
 
         results['silhouette_score'] = ev_processor.silhouette_score(self.__train_model, self.__inference_model)
 
         for top in results['top']:
-            results['npmi_coh'].append(ev_processor.c_npmi_coherence_model(top_n=top).get_coherence())
-            results['cv_coh'].append(ev_processor.c_v_coherence_model(top_n=top).get_coherence())
+            # Measured coherence is u_mass as stated is most reliable in topic association
+            results['coherence'].append(ev_processor.u_mass_coherence_model(top_n=top).get_coherence())
 
         return results

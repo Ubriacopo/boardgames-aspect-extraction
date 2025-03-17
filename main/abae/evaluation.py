@@ -91,4 +91,4 @@ class ABAEEvaluationProcessor:
 
         embeddings = model.get_layer(index=1)(np.stack(ds.dataset.map(lambda x: np.array(x))))
         w_embs = [(att[..., np.newaxis] * emb.cpu().numpy()).sum(0) for emb, att in zip(embeddings, att)]
-        return silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine')
+        return float(silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine'))

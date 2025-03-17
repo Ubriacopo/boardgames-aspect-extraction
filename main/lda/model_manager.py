@@ -1,5 +1,7 @@
 import pandas as pd
+from gensim import corpora
 from gensim.models import LdaMulticore, LdaModel, CoherenceModel
+from pandas import DataFrame
 
 from main.lda.config import LdaGeneratorConfig
 from main.lda.model import LdaModelGenerator
@@ -18,7 +20,7 @@ class LDAManager:
     def from_scratch(cls, config: LdaGeneratorConfig, stop_words: list[str] = None):
         return cls(config, LdaModelGenerator(config, stop_words))
 
-    def get_model(self, corpus_path: str = None, load_existing: bool = False, refresh: bool = True):
+    def get_model(self, corpus_path: str | DataFrame = None, load_existing: bool = False, refresh: bool = True):
         if not refresh and self.__model is not None:
             # We want to get the current model directly not a new instance
             return self.__model
@@ -37,16 +39,19 @@ class LDAManager:
         if type(test_corpus) == str:
             test_corpus = pd.read_csv(test_corpus)['comments'].apply(lambda x: x.split(' '))
 
-        results = dict(cv_coh=[], npmi_coh=[], topn=[3, 10, 25] if topn is None else topn)
+        results = dict(coherence=[], topn=[3, 5, 10, 20] if topn is None else topn)
 
         dictionary = self.__model.id2word
         results['perplexity'] = self.__model.log_perplexity(test_corpus.apply(lambda x: dictionary.doc2bow(x)).tolist())
 
         for topn in results['topn']:
-            cv_model = CoherenceModel(self.__model, texts=test_corpus, coherence='c_v', topn=topn)
-            npmi_model = CoherenceModel(self.__model, texts=test_corpus, coherence='c_npmi', topn=topn)
+            dictionary = corpora.Dictionary()
+            corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in test_corpus]
 
-            results['cv_coh'].append(cv_model.get_coherence())
-            results['npmi_coh'].append(npmi_model.get_coherence())
+            model = CoherenceModel(
+                model=self.__model, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=topn
+            )
+
+            results['coherence'].append(model.get_coherence())
 
         return results
