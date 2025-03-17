@@ -47,7 +47,7 @@ class Word2VecWrapper:
     def generate(self, corpus: list, sg: bool = False):
 
         self.model is not None and print("A new model is being created. The old one will be discarded!")
-        self.model = Word2Vec(sentences=corpus, vector_size=self.embedding_size, epochs=25,
+        self.model = Word2Vec(sentences=corpus, vector_size=self.embedding_size, # epochs=10,
                               min_count=self.min_word_count, max_vocab_size=self.max_vocab_size, sg=sg)
 
         # Add padding token at spot 0 by re-organizing based on counts.
