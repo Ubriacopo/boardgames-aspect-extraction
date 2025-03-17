@@ -8,7 +8,7 @@ from main.config import BaseConfig
 class ABAEGeneratorConfig(BaseConfig):
     max_seq_len: int = 80
     negative_sample_size: int = 20
-    embedding_size: int = 100
+    embedding_size: int = 200
     aspect_size: int = 14
 
 

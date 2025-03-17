@@ -54,6 +54,17 @@ gave us the possibility to explore more various data types.
 
 \subsection{Metrics}
 % todo
+Not having a ground truth to estimate the real performance of the model on makes the pursuit of a strong metric
+for model evaluation crucial.
+As proposed when ABAE was presented \cite{he-etal-2017-unsupervised} a metric that has been observed to relate
+well with human judgement is \textit{topic coherence}, also known as "\textit{umass}" \textit{coherence} \cite{mimno-etal-2011-optimizing}:
+$$C(t;V^[(t)]) = \sum^M_{m=2} \sum^{m-1}_{l=1} \log \frac{D(v_m^{(t)}, v_l^{(t)}) + 1}{D(v_l^{(t)})} $$.
+
+Where $D(v)$ measures the document frequency of the word type $v$ and $D(v,v')$ the co-document frequency.
+The values of the metric lie in the interval $(-\infty, 0)$. Values closer to zero yield a better coherence.
+
+To further make considerations on the results we also consider some other metrics:
+% todo?
 
 \subsection{Developed models}
 Once the processed dataset generation has been completed we try the two different approaches to see the best way
@@ -61,25 +72,58 @@ to process for each task. Both starting points have been intialized with a 'stan
 to later be tuned.
 
 \subsection{LDA}
-The model has at first been trained with a smaller dataset of around 80k records in hope to be able to
-capture the desired information with less information.
-Of the pipelines used the most promising in terms of coherence were the non sentence based models but,
-expecting to extract more global features than the locality of the ones given by sentence splitting I
-decided to pursuit two paths: NOUN and default-sentence datasets.
-While the goal of the project is not much on the quality of the results to actually be able to draw
-some conclusions a hyperparameter tuning procedure has been run focusing for LDA on its most important parameter:
-the number of topics K.
+% todo rileggi
+LDA elaboration is not a computation heavy task for modern standards therefore I experiment the different
+preprocessing pipelines with ease.
+The goal of the project focuses on the approach rather than the results.
+Considering this a hyperparameters tuning process was still performed.
+Reason for this is that in order for LDA to be competitive with ABAE in terms of results we want
+to be sure on the possible solutions. This might also, and will, give us some insight on the quality of the data.
 
+As stated before working on LDA is not much time-consuming therefore we could apply K-fold CV on each
+seen configurations to better assess the actual performance.
+The hypermodel has various hyperparameters($K,\alpha, \eta$) but the most important of all is $K$: the number of topics.
+The hyperparameters tuning procedure, like for ABAE, is done without applying advanced approaches like bayesian optimization.
+We simply applied a random search heuristic knowing that, for enough configurations, it outperforms grid search generally.
 
-- default first apporach
-- why K is important and why we started with 14
-- how tuning worked -> focus on K and not other parameters as there are some that are more important
-- metrics used for eavluation
+The best found configuration is then run on the full data and evaluated according to our metrics.
+% todo come top
+The top words for each topic, or aspect in our application, are extracted from each topic to match it a possible gold standard of the task we are working on.
+This mapping is wrapped in a class that acts as multi-aspect classifier for a given text.
 
 \subsection{ABAE}
-- loss fn ->
-- optimizer -> fixed lr flexible
-- batch size -> why it is important
-- epochs low for contraint reasons
-- how tuning worked (random search)
-- metrics used for evaluation
+For ABAE complexity rises.
+The model is buildable on a custom set of embedding vectors which we trained on the corpus.
+The embeddings model we use is an implementation of Word2Vec and works on the default parameters defined by the \textit{gensim} library.
+% todo spiego che é compost da embedding -> attention -> autoencoder -> maxmargin?
+To train ABAE, as proposed by the original paper, we use \textit{max margin loss}.
+A metric that measures the distance between the reconstructed sample by the autoencoder and the negative samples
+provided for one training iteration. It is defined as:
+$$ J(\theta) = \sum_{s\in D}\sum_{i=1}^m \max(0, 1 - r_sz_s + r_sn_i)$$
+
+The size of the negative samples for the loss computation was fixed to 20.
+
+As for optimizer \textit{adam} has been chosen as for the original ABAE proposal.
+Although \textit{SGD} is less bloated and can perform as well if not better \cite{wilson2018marginal} the gain on the
+convergence speed is enough to keep this setting.
+
+The first run on the untun                                 ed model was on default setting of the ABAE paper.
+Given that the task is similar, but we cannot assume the same for the data we have, for better results
+to compare with LDA a minimum of hyperparameter tuning was performed.
+Unlike LDA, for time constraint reasons,  applying k-fold CV was not possible.
+The dataset should be big enough to opt for the classic cross validation approach.
+The tuned hyperparameters are:
+\begin{itemize}
+    \item {Learning rate:}
+    \item {Epochs:}
+    \item {Batch size:}
+    \item {Learning rate:}
+    \item {Embedding size:}
+    \item {Aspect size:}
+\end{itemize}
+
+%% todo riscirvi questo sotto
+The best found configuration is then run on the full data and evaluated according to our metrics.
+% todo come top
+The top words for each topic, or aspect in our application, are extracted from each topic to match it a possible gold standard of the task we are working on.
+This mapping is wrapped in a class that acts as multi-aspect classifier for a given text.
