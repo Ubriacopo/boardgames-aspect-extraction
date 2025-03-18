@@ -4,12 +4,32 @@ The quality of the generated models in performance perspective aren't possibly k
 
 By our measures the coherence is good enough.
 
-
 Some possible issues in the approach were most probably in the processing of the data.
 At posterior analysis maybe mapping the numbers all to a single num tag might have hurt the model.
 This could mean that the processing pipeline may be too aggressive and degraded the data.
 
 
+If not the processing pipeline the real problem could be the dataset.
+The scrapped dataset from BGG is assumed to contain a good portion of reviews citing the searched aspects but
+we have no guarantee of it.
+This could be improved by applying some simple heuristic when dowanloading the reviews.
+Reviews might be too similar and therefore measure the quality of it could also be a step to improve the results.
+
+Another idea that could be applied is that to run the found model to filter out reviews that too harshly rely
+on identified aspects that do not fit the requirmentns, e.g. "Game components".
+This way we would be using a first, more general, model that allows us to specialize our dataset better.
+From the new dataset a new model could be studied that probably would achieve better quality measured by the metric.
+
+Ultimatively to really draw satisfying conclusions a test set should be developed but more work in the
+processing pipeline and/or the dataset composition should help to solve the met issues.
+Exploting information from BGG could be an alternative way to tackle this like for example using the complexity rating of a game.
+We could suppose that games with high or low complexity are most likely to cite this caracteristic in reviews.
+Other ideas like this could be studied.
+In the end the quality of the dataset should have been better took care.
+
+For sure both the data and the approach could be improved in order to make a more valid solution.
+
+%% todo vedi se rispeti scaletta
 data is enoug but the quality and refinement has to be increased
 
 better identification between various review types
