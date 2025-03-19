@@ -1,33 +1,27 @@
 \section{Experimental results}
-Results for the project were underwhelming.
-% Table tuning reults
-For ABAE 20 different configurations for hyperparemeters were chosen, some performing slightly better
-but overall a low topic coherence.
-The metric is a little better for LDA but still not in optimal ranges for topic modelling applications.
-This phenomna might be for the locality and complexity that derives from the fine-grained aspects to identify.
 
-For LDA the best processing pipleine in terms of result did not yeild the most interpretable model infact,
-the sentence model while performing worse returned a less valuable model.
-The identified gold aspects mapped to the identified ones are reported in table.
+Results for the project were underwhelming.
+Topic coherence was overall low.
+This phenomena might be given by the locality and complexity that derives from the fine-grained aspects to identify.
+
+% Table tuning reults
+For ABAE around 20 different configurations for hyperparameters were evaluated.
+Some of these performed slightly better than others but, overall, there only was a minor gain in topic coherence with
+w.r.t the standard configuration that was used during the first attempt.
+
+Measured values for LDA are a little better but still not in optimal ranges for topic modelling applications.
+% todo devi fare coso
+For LDA the best processing pipeline in terms of result did not yield the most interpretable model in fact,
+the sentence model while performing worse returned a more valuable model.
+The identified gold aspects mapped to the identified ones are reported in table. % todo ref table
 From the inferred aspects we see that the model has a hard time distinguishing %todo quali
-which might be given by the fact that the dataset is not balaced well enough.
+which might be given by the fact that the dataset is not balanced well enough.
 
 The reviews obtained from BGG mostly talk about complexity and components and less about % vbedi se  qualcosa
+this unbalance in the data could have led to a bad identification of some required aspects.
 
 ABAE results are reported in table.
 The results are less promising in terms of coherence but the found aspects map well to the domain requested
 ones.
-As expected ABAE is able to better extract underlying associaitons that allows it to recognize more complex relationships
+As expected ABAE is able to better extract underlying associations that allows it to recognize more complex relationships
 between potential aspects.
-
-
-% todo segui scaletta
-results for lda
-- underwhelming tuning procedure that did not give much
-- gold inferred aspeecst table
-- which processing was best
-
-results for abae
-
-found gold aspects matching with aspects and topics
-unability to predict on a test set as i dont have one

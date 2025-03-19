@@ -10,6 +10,7 @@ from pandas import DataFrame
 from main.hp_tuning import HyperparametersConfigGenerator, TuningProcedure
 from main.lda.config import LdaGeneratorConfig
 from main.lda.model_manager import LDAManager
+import plotly.express as px
 
 
 class LDATuningProcedure(TuningProcedure):
@@ -22,9 +23,7 @@ class LDATuningProcedure(TuningProcedure):
         self.results: list = json.load(open(file_path)) if Path(file_path).is_file() else []
 
     def run(self, data: DataFrame, configurations: int, custom_stopwords: list = None):
-        self.results = []
         folds = np.array_split(data, self.folds)
-
         # Configurations to see is max_iterations
         for i in range(configurations):
             config = next(self.generator)
@@ -56,35 +55,20 @@ class LDATuningProcedure(TuningProcedure):
         return self.results
 
 
-
-def make_plot_topics_selection_results(results_file_path: str, text: str) -> tuple[go.Figure, DataFrame]:
+def process_results_for_plots(results_file_path: str) -> DataFrame:
     # Refine the data so that plotting is possible
     data = pd.DataFrame(json.load(open(results_file_path)))
     data['topics'] = data['config'].map(lambda o: o['topics'])
     data['perplexity'] = data['perplexity'].map(lambda x: np.mean(x))
-    for i in [3, 10, 25]:
-        data[f'{i}_npmi_coh'] = data['npmi_coh'].map(lambda x: np.mean(x[str(i)]))
-        data[f'{i}_cv_coh'] = data['cv_coh'].map(lambda x: np.mean(x[str(i)]))
-    data = data.drop(columns=['config', 'npmi_coh', 'cv_coh'])
+    data['coherence'] = data['coherence'].map(lambda x: np.mean(x, axis=0))
+    data['perplexity'] = data['perplexity'].map(lambda x: np.mean(x))
 
-    # Make plot of the data
-    fig = go.Figure()
+    structured_data = dict(topics=[], perplexity=[], coherence=[], top=[])
+    for index, row in data.iterrows():
+        for i in range(len(row['top'])):
+            structured_data['topics'].append(row['topics'])
+            structured_data['coherence'].append(row['coherence'][i])
+            structured_data['top'].append(row['top'][i])
+            structured_data['perplexity'].append(row['perplexity'])
 
-    data = data.sort_values(by="topics")
-    fig.add_trace(go.Scatter(x=data['topics'], y=data['3_cv_coh'], mode='lines', name='top-3'))
-    fig.add_trace(go.Scatter(x=data['topics'], y=data['10_cv_coh'], mode='lines', name='top-10'))
-    fig.add_trace(go.Scatter(x=data['topics'], y=data['25_cv_coh'], mode='lines', name='top-25'))
-
-    fig.add_trace(
-        go.Scatter(x=data['topics'], y=data['3_npmi_coh'], mode='lines', name='top-3', line=dict(dash='dash'))
-    )
-    fig.add_trace(
-        go.Scatter(x=data['topics'], y=data['10_npmi_coh'], mode='lines', name='top-10', line=dict(dash='dash'))
-    )
-    fig.add_trace(
-        go.Scatter(x=data['topics'], y=data['25_npmi_coh'], mode='lines', name='top-25', line=dict(dash='dash'))
-    )
-    fig.update_traces(mode='lines+markers')
-    fig.update_layout(title=dict(text=text), xaxis=dict(title=dict(text='Model topics K')),
-                      yaxis=dict(title=dict(text='CV coherence')))
-    return fig, data
+    return pd.DataFrame(structured_data)
