@@ -14,8 +14,11 @@ class LdaModelGenerator:
         self.stop_words: list[str] = stop_words if stop_words is not None else []
 
     def make_model(self, corpus: str | DataFrame, existing_path: str = None) -> tuple[LdaModel, Dictionary]:
-        if existing_path is not None:
-            return LdaModel.load(existing_path)
+        try:
+            if existing_path is not None:
+                return LdaModel.load(existing_path)
+        except FileNotFoundError:
+            print("Model not found. Making a new one.")
 
         ds = LdaDataset(corpus, self.stop_words)
         return (

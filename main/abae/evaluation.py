@@ -92,3 +92,7 @@ class ABAEEvaluationProcessor:
         embeddings = model.get_layer(index=1)(np.stack(ds.dataset.map(lambda x: np.array(x))))
         w_embs = [(att[..., np.newaxis] * emb.cpu().numpy()).sum(0) for emb, att in zip(embeddings, att)]
         return float(silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine'))
+
+    def get_aspects(self, top_n: int):
+        n = len(self.__av)  # Number of aspect vectors (av is named like wv - aspect_vector)
+        return  [list(self.extract_top_k_words(i, top_n)) for i in range(n)]

@@ -146,3 +146,11 @@ class ABAEManager:
             results['coherence'].append(ev_processor.u_mass_coherence_model(top_n=top).get_coherence())
 
         return results
+
+    def make_ev_processor(self, test_corpus: str | pd.DataFrame) -> ABAEEvaluationProcessor:
+        inverse_vocab = self.generator.emb_model.model.wv.index_to_key
+        vocab = self.generator.emb_model.vocabulary()
+        
+        return ABAEEvaluationProcessor(
+            test_corpus, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
+        )
