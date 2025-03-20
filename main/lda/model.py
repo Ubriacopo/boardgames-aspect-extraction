@@ -31,3 +31,12 @@ class LdaModelGenerator:
             # The dictionary mapping num to word
             ds.dict
         )
+
+# todo
+class LdaClassifier:
+    def __init__(self, mapped_labels: list[str], model: LdaDataset):
+        self.mapped_labels = mapped_labels
+        self.model = model
+
+    def classify(self, corpus):
+        return self.model.process_dataset(corpus)
