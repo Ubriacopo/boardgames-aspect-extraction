@@ -4,16 +4,16 @@ from uuid import uuid4
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 from pandas import DataFrame
 
 from main.hp_tuning import HyperparametersConfigGenerator, TuningProcedure
 from main.lda.config import LdaGeneratorConfig
 from main.lda.model_manager import LDAManager
-import plotly.express as px
 
 
 class LDATuningProcedure(TuningProcedure):
+    random_shuffle_state = 47
+
     def __init__(self, generator: HyperparametersConfigGenerator, top: list[int], file_path: str, folds: int = 5):
         super().__init__(generator)
         self.folds = folds
@@ -23,7 +23,7 @@ class LDATuningProcedure(TuningProcedure):
         self.results: list = json.load(open(file_path)) if Path(file_path).is_file() else []
 
     def run(self, data: DataFrame, configurations: int, custom_stopwords: list = None):
-        folds = np.array_split(data, self.folds)
+        folds = np.array_split(data.sample(frac=1, random_state=LDATuningProcedure.random_shuffle_state), self.folds)
         # Configurations to see is max_iterations
         for i in range(configurations):
             config = next(self.generator)
