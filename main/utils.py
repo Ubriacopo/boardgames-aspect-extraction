@@ -1,3 +1,4 @@
+import json
 from abc import abstractmethod
 from keras import ops as K
 import pandas as pd
@@ -37,5 +38,40 @@ def max_margin_loss(y_true, y_pred):
     return K.mean(y_pred, axis=-1)
 
 
-def zero_loss(y_true, y_pred):
-    return K.convert_to_tensor([0])
+# TODO: Vedi se devi fare accorgimenti per i due modelli
+class ModelAspectMapper:
+    def __init__(self, aspects: int):
+        self.aspect_size = aspects
+        self.mappings = {i: '' for i in range(aspects)}
+        self.gold_aspects = ["luck", "bookkeeping", "downtime", "interaction", "bash", "complex/complicated", "misc"]
+
+    def assign(self, aspect_index: int, class_name: str):
+        if class_name not in self.gold_aspects:
+            raise "Given class is invalid"
+        self.mappings[aspect_index] = class_name
+
+    def store(self, target_folder):
+        with open(f"{target_folder}/mappings.json", 'w') as f:
+            json.dump(self.mappings, f)
+
+    def map_to_gold(self, scores: list[float]) -> pd.DataFrame:
+        if len(scores) != self.aspect_size:
+            raise "Scores did not match aspect size"
+        # Scores
+        return_object = [{"score": 0, "label": gold, "sources": []} for gold in self.gold_aspects]
+        for i in range(len(scores)):
+            aspect = self.mappings[i]
+            index = self.gold_aspects.index(aspect)
+            return_object[index]['score'] += scores[i]
+            return_object[index]['sources'].append(i)
+
+        return pd.DataFrame(return_object)
+
+    @classmethod
+    def load_from_file(cls, file_path: str):
+        with open(file_path, 'w') as f:
+            objects = json.load(f)
+
+        instance = cls(len(objects))
+        instance.mappings = objects
+        return instance
