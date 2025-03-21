@@ -9,14 +9,13 @@ from keras.src.callbacks import ModelCheckpoint, EarlyStopping
 from pandas import DataFrame
 from torch.utils.data import DataLoader
 
-from core.utils import max_margin_loss
 from main.abae.config import ABAEManagerConfig
 from main.abae.dataset import PositiveNegativeABAEDataset
 from main.abae.evaluation import ABAEEvaluationProcessor
 from main.embedding import Word2VecWrapper
 from main.abae.embedding import AspectEmbedding
 from main.abae.model import BaseABAE, ABAE
-from main.utils import CorpusLoaderUtility
+from main.utils import CorpusLoaderUtility, max_margin_loss
 
 
 class MetricAboveThresholdStopping(EarlyStopping):
@@ -54,7 +53,7 @@ class ABAEManager:
         self.__inference_model: keras.Model | None = None
 
     @classmethod
-    def from_scratch(cls, config: ABAEManagerConfig, corpus_path: str, override: bool = False, model_class=ABAE):
+    def from_config(cls, config: ABAEManagerConfig, corpus_path: str, override: bool = False, model_class=ABAE):
         # Make embeddings
         corpus = CorpusLoaderUtility(column_name="comments").load(corpus_path)
         embeddings_file = f"{config.output_path()}/{config.name}.embeddings.model"
@@ -150,7 +149,7 @@ class ABAEManager:
     def make_ev_processor(self, test_corpus: str | pd.DataFrame) -> ABAEEvaluationProcessor:
         inverse_vocab = self.generator.emb_model.model.wv.index_to_key
         vocab = self.generator.emb_model.vocabulary()
-        
+
         return ABAEEvaluationProcessor(
             test_corpus, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
         )

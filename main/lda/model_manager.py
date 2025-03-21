@@ -17,7 +17,7 @@ class LDAManager:
         self.__model: LdaModel | None = None
 
     @classmethod
-    def from_scratch(cls, config: LdaGeneratorConfig, stop_words: list[str] = None):
+    def from_config(cls, config: LdaGeneratorConfig, stop_words: list[str] = None):
         return cls(config, LdaModelGenerator(config, stop_words))
 
     def get_model(self, corpus_path: str | DataFrame = None, load_existing: bool = False, refresh: bool = True):

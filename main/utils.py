@@ -1,5 +1,5 @@
 from abc import abstractmethod
-
+from keras import ops as K
 import pandas as pd
 import swifter
 from pandas import DataFrame
@@ -22,3 +22,20 @@ class CorpusLoaderUtility(DataLoaderUtility):
         if type(corpus) is str:
             corpus = pd.read_csv(corpus)
         return corpus[self.column_name].swifter.apply(lambda x: x.split()).tolist()
+
+
+def max_margin_loss(y_true, y_pred):
+    """
+    The max margin loss function is used to train the model.
+    It is a hinge loss function that is used to train the model to maximize the
+    margin between the correct class and the other classes.
+
+    @param y_true: The true labels.
+    @param y_pred: The predicted labels.
+    @return: The loss value.
+    """
+    return K.mean(y_pred, axis=-1)
+
+
+def zero_loss(y_true, y_pred):
+    return K.convert_to_tensor([0])

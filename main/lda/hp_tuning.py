@@ -38,7 +38,7 @@ class LDATuningProcedure(TuningProcedure):
                 validation_split: DataFrame = folds[k]  # On what to compute the validation metrics
                 train = pd.concat([folds[index] for index in range(len(folds)) if index != k])
                 print(f"Running fold = {k}")
-                lda_manager = LDAManager.from_scratch(LdaGeneratorConfig.from_configuration(str(run_id), config))
+                lda_manager = LDAManager.from_config(LdaGeneratorConfig.from_configuration(str(run_id), config))
 
                 lda_manager.get_model(train)
                 print("Model generation over, evaluating...")
