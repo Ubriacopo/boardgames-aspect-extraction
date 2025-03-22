@@ -1,30 +1,46 @@
 \section{Introduction}
 
-Playing boardgames has become really popular hobby and business in the last years.
+Boardgames has become a really popular hobby and business in the past years.
 
-The field of boardgames is very broad and games can be very different.
-But at the core some elements are shared and identifying those, is the goal of this project.
+The field is very broad and the games themselves can be very different.
+But, at the core some elements are shared and identifying those, is the goal of this project.
 By scrapping review from the web platform \href{https://boardgamegeek.com/}{BoardGameGeek (BGG)}
 to be collected in a corpus, this project aims in identifying the following aspects
 \footnote{For a deeper insight into the domain definitions take a look at: \href{https://www.goblins.net/goblinpedia}{Goblinpedia - La tana dei Goblin}}:
 % todo Da qui in giu sistema
 \begin{itemize}
-    \item{\textbf{Luck}:} The degree of luck involved in the game.
-    Most games involve some form of luck, basically any dice game, while others not at all (e.g. "Guards of Atlantis 2").
-    \item{\textbf{Bookkeeping}} How much a player has to keep focus and track on resources or element that involve the winning condition
-    \item{\textbf{Downtime}} How much the player has to wait between interacting with the game between turns if there is any
-    \item{\textbf{Interaction}} Degree of influence of one player w.r.t to the others
-    \item{\textbf{Bash the leader}} If and when to focus on the winning player to avoid him winning.
-    A game that has common situations of bashing is Root.
-    \item{\textbf{Complicated vs Complex}} The complexity is a difficulty that does not scaled down with the skill while
-    a complicated game has only a step initial learning curve.
+    \item{\textbf{Luck:}} How much randomization si present in the game.
+    The higher the degree of luck in a game the lower the agency power of a player.
+    Most games involve some form of luck, almost every dice game, while others do not at all or limit it as much as possible (e.g. "Guards of Atlantis 2").
+
+    \item{\textbf{Bookkeeping:}} Is mostly a negative feature of some games.
+    It is the manual recording of data or execution of automatic/semi-automatic game processes.
+
+    \item{\textbf{Downtime:}} It is the passive time in which a player has no agency over the game.
+
+    \item{\textbf{Interaction:}} Degree of influence of one player w.r.t to the others.
+    It can be be direct like trading in "Catan" or indirect like gaining valuables in "Wyrmspan".
+
+    \item{\textbf{Bash the leader:}} Is a phenomena present in some games where in order to win players
+    have to prevent the victory of whoever is in advantage at the moment.
+    This characteristic is most time exploitable by not acting against the current leader to get closer to
+    victory forcing others to sacrifice their possible victory to prioritize bashing.
+    A game that in almost every match requires bashing is "Root".
+
+    \item{\textbf{Complicated vs Complex}} A game is considered complicated if it has a steep learning curve
+    but after learning the rules and the basics it is not difficult to master.
+    The results of ones actions are predictable and immediate.
+    An example for a complicated game is "Zombicide".
+    Complex games on the other hand require critical thinking in order to achieve victory.
+    Those games are hard to master and a difference in skill is easily noticeable. A good example could be "Go".
 \end{itemize}
 
 The proposed problem shares significant similarities with various aspect extractions/ sentiment analysis solutions
 developed on the Citysearch corpus?TODO REF. This made me believe that the problem could be reduceable to the same task
-in another domain reason for I re-implemented Attention Based Aspect Extraction (ABAE)\cite{he-etal-2017-unsupervised} that was proposed for that very problem.
-Alongside ABAE I also studied tweaked versions of the Latent Dirichlet Allocation (LDA).
-% todo lda paper ref
+in another domain.
+For this reason for I re-implemented \textit{Attention Based Aspect Extraction}  (ABAE)\cite{he-etal-2017-unsupervised}
+that was proposed for that very problem.
+Alongside ABAE I also studied tweaked versions of the \textit{Latent Dirichlet Allocation} (LDA).
 
 \paragraph{Latent Dirichlet Allocation}
 LDA is a topic modelling method that has also been widely used for aspect extraction under the unsupervised learning framework,
@@ -60,22 +76,21 @@ The input generated embeddings of a sentence are weighted by an attention mechan
 that helps the process to focus on relevant parts of the input sentence.
 The training objective of the model is to minimize the difference between the decoded input embedding, sentence reconstruction,
 and the originally calculated sentence embedding.
-? fn descritta matematichese
-$$J(\theta) = $$
 
 \paragraph{}
 The trickiest part of the experiment is the lack of ground truth that brings us to an unsupervised learning framework.
 In order to overcome this problem we used some commonly used clustering metrics to be able to draw some sort of conclusion on which we
-take a deeper look in the section .%todo ref section
+take a deeper look in the coming section.
 
 \subsection{Experimental Setup and Development Environment}
-To make full use of the GPU power, CUDA drivers were needed.
-The project ran on CUDA 11.8.
-To implement the ABAE model I used Keras with a Pytorch backend.
+All the training procedures and notebooks were ran locally.
+
+To make full use of the GPU power, CUDA drivers were needed. The project ran on CUDA 11.8.
+To implement the ABAE model Keras was used with a Pytorch backend.
 This choice was pivoted by the fact that PyTorch is very popular among the research community.
 Libraries and other references are listed in the GitHub repository\cite{Fichera_Muffin_vs_Chihuahua_2024}
 
-For reproducibility purposes all seeds are set.
+For reproducibility purposes all seeds are set in the code.
 
 \begin{center}
     \begin{table}
