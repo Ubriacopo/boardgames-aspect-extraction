@@ -42,9 +42,10 @@ def max_margin_loss(y_true, y_pred):
 class ModelAspectMapper:
     LUCK: str = "luck"
     BOOKKEEPING: str = "bookkeeping"
+    DOWNTIME: str = "downtime"
     INTERACTION: str = "interaction"
     BASH: str = "bash"
-    COMPLEX_COMPLICATED: str = "complex/compacted"
+    COMPLEX_COMPLICATED: str = "complex/complicated"
     MISC: str = "misc"
 
     def __init__(self, aspects: int):
@@ -63,7 +64,7 @@ class ModelAspectMapper:
 
     def map_to_gold(self, scores: list[float]) -> pd.DataFrame:
         if len(scores) != self.aspect_size:
-            raise "Scores did not match aspect size"
+            raise Exception("Scores did not match aspect size")
         # Scores
         return_object = [{"score": 0, "label": gold, "sources": []} for gold in self.gold_aspects]
         for i in range(len(scores)):
@@ -76,7 +77,7 @@ class ModelAspectMapper:
 
     @classmethod
     def load_from_file(cls, file_path: str):
-        with open(file_path, 'w') as f:
+        with open(file_path, 'r') as f:
             objects = json.load(f)
 
         instance = cls(len(objects))
