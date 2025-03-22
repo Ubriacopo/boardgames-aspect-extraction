@@ -23,14 +23,19 @@ class ABAEEvaluationProcessor:
         self.df: DataFrame = test_ds  # df as for dataframe as the set is a dataframe or a path to a dataframe
 
         # Word Vector (Like Gensim names)
-        self.__wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
+        self.wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
         # Aspect Vector (Like Gensim names)
-        self.__av = normalize(model.get_layer(index=7).w, dim=-1)
-        self.__calculated_aspects: list = []
+        self.av = normalize(model.get_layer(index=7).w, dim=-1)
+        self.calculated_aspects: list = []
 
-        self.__vocabulary = vocab
-        self.__inverse_vocabulary = inverse_vocab
-        self.__max_sequence_length = max_sequence_length
+        self.vocabulary = vocab
+        self.inverse_vocabulary = inverse_vocab
+        self.max_sequence_length = max_sequence_length
+
+    def word_topic_relation(self, word: str):
+        index = self.vocabulary[word]
+        similarity = self.wv[index] @ self.av.T
+        return similarity
 
     def extract_top_k_words(self, aspect_index: int, top_k: int, verbose=False) -> list:
         """
@@ -40,22 +45,22 @@ class ABAEEvaluationProcessor:
         @param verbose: If we want to print out the top k words for the current aspect.
         @return:
         """
-        if aspect_index >= len(self.__av):
+        if aspect_index >= len(self.av):
             raise IndexError("Aspect index out of range.")
 
-        similarity = self.__wv @ self.__av[aspect_index]
+        similarity = self.wv @ self.av[aspect_index]
         sorted_words = torch.argsort(similarity, descending=True)
         for w in sorted_words[:top_k]:
-            verbose and print("Word: ", self.__inverse_vocabulary[w], f"({similarity[w]})")
-            yield self.__inverse_vocabulary[w], similarity[w]
+            verbose and print("Word: ", self.inverse_vocabulary[w], f"({similarity[w]})")
+            yield self.inverse_vocabulary[w], similarity[w]
 
     def __prepare_aspects(self, top_n: int):
-        if len(self.__calculated_aspects) >= top_n:
-            return self.__calculated_aspects
-        n = len(self.__av)  # Number of aspect vectors (av is named like wv - aspect_vector)
+        if len(self.calculated_aspects) >= top_n:
+            return self.calculated_aspects
+        n = len(self.av)  # Number of aspect vectors (av is named like wv - aspect_vector)
         # Extract top k words and map to only the word actual value and to list as the methods gives a generator.
-        self.__calculated_aspects = [list(map(lambda x: x[0], self.extract_top_k_words(i, top_n))) for i in range(n)]
-        return self.__calculated_aspects
+        self.calculated_aspects = [list(map(lambda x: x[0], self.extract_top_k_words(i, top_n))) for i in range(n)]
+        return self.calculated_aspects
 
     def u_mass_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
@@ -86,7 +91,7 @@ class ABAEEvaluationProcessor:
         if self.df is None:
             raise AttributeError("test_ds is not set but is required to evaluate the silhouette score")
 
-        ds = ABAEDataset(self.df, self.__vocabulary, self.__max_sequence_length)
+        ds = ABAEDataset(self.df, self.vocabulary, self.max_sequence_length)
         att, labels = inference_model.predict(DataLoader(ds, batch_size=512))
 
         embeddings = model.get_layer(index=1)(np.stack(ds.dataset.map(lambda x: np.array(x))))
@@ -94,5 +99,5 @@ class ABAEEvaluationProcessor:
         return float(silhouette_score(w_embs, np.argmax(labels, axis=1), metric='cosine'))
 
     def get_aspects(self, top_n: int):
-        n = len(self.__av)  # Number of aspect vectors (av is named like wv - aspect_vector)
-        return  [list(self.extract_top_k_words(i, top_n)) for i in range(n)]
+        n = len(self.av)  # Number of aspect vectors (av is named like wv - aspect_vector)
+        return [list(self.extract_top_k_words(i, top_n)) for i in range(n)]

@@ -12,7 +12,7 @@ from spacy.lang.en import English
 from spacy.matcher import PhraseMatcher, Matcher
 from spacy.tokens import Doc, Token
 
-from core.dataset_sampler import ConsumingDatasetSampler
+from dataset_sampler import ConsumingDatasetSampler
 
 
 class PreProcessingRule:

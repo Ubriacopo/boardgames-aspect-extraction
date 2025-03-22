@@ -40,6 +40,13 @@ def max_margin_loss(y_true, y_pred):
 
 # TODO: Vedi se devi fare accorgimenti per i due modelli
 class ModelAspectMapper:
+    LUCK: str = "luck"
+    BOOKKEEPING: str = "bookkeeping"
+    INTERACTION: str = "interaction"
+    BASH: str = "bash"
+    COMPLEX_COMPLICATED: str = "complex/compacted"
+    MISC: str = "misc"
+
     def __init__(self, aspects: int):
         self.aspect_size = aspects
         self.mappings = {i: '' for i in range(aspects)}
