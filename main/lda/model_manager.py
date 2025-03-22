@@ -27,8 +27,7 @@ class LDAManager:
 
         path = self.considered_path if load_existing else None
         print(f"Generating a new compiled model from {'scratch' if path is None else 'fs'}")
-        self.__model, _ = self.generator.make_model(corpus_path, path)
-
+        self.__model = self.generator.make_model(corpus_path, path)
         self.__model.save(self.considered_path)
         return self.__model
 

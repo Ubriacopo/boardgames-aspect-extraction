@@ -13,24 +13,20 @@ class LdaModelGenerator:
         self.c: LdaGeneratorConfig = config
         self.stop_words: list[str] = stop_words if stop_words is not None else []
 
-    def make_model(self, corpus: str | DataFrame, existing_path: str = None) -> tuple[LdaModel, Dictionary]:
+    def make_model(self, corpus: str | DataFrame, existing_path: str = None) -> LdaModel:
         try:
             if existing_path is not None:
-                return LdaModel.load(existing_path)
+                model = LdaModel.load(existing_path)
+                return model
         except FileNotFoundError:
             print("Model not found. Making a new one.")
 
         ds = LdaDataset(corpus, self.stop_words)
-        return (
-            # The LdaModel
-            LdaMulticore(
-                corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha,
-                eta=self.c.eta, passes=self.c.passes, random_state=self.c.random_state
-            ),
-
-            # The dictionary mapping num to word
-            ds.dict
+        return LdaMulticore(
+            corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha,
+            eta=self.c.eta, passes=self.c.passes, random_state=self.c.random_state
         )
+
 
 # todo
 class LdaClassifier:
