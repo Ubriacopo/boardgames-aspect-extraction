@@ -10,12 +10,12 @@ from pandas import DataFrame
 from torch.utils.data import DataLoader
 
 from main.abae.config import ABAEManagerConfig
-from main.abae.dataset import PositiveNegativeABAEDataset
+from main.abae.dataset import PositiveNegativeABAEDataset, ABAEDataset
 from main.abae.evaluation import ABAEEvaluationProcessor
 from main.embedding import Word2VecWrapper
 from main.abae.embedding import AspectEmbedding
 from main.abae.model import BaseABAE, ABAE
-from main.utils import CorpusLoaderUtility, max_margin_loss
+from main.utils import CorpusLoaderUtility, max_margin_loss, ModelAspectMapper
 
 
 class MetricAboveThresholdStopping(EarlyStopping):
@@ -128,8 +128,8 @@ class ABAEManager:
         vocabulary = self.generator.emb_model.vocabulary()
         max_seq_length = self.c.max_seq_len
         negative_size = self.c.negative_sample_size
-        test_ds = PositiveNegativeABAEDataset(test_corpus, vocabulary, max_seq_length, negative_size)
-        results['loss'] = self.__train_model.evaluate(DataLoader(test_ds, batch_size=self.c.batch_size))
+        ds = PositiveNegativeABAEDataset(test_corpus, vocabulary, max_seq_length, negative_size)
+        results['loss'] = self.__train_model.evaluate(DataLoader(ds, batch_size=self.c.batch_size))
 
         # Other metrics
         inverse_vocab = self.generator.emb_model.model.wv.index_to_key
@@ -153,3 +153,12 @@ class ABAEManager:
         return ABAEEvaluationProcessor(
             test_corpus, self.__train_model, inverse_vocab, vocab, max_sequence_length=self.c.max_seq_len
         )
+
+    def predict(self, test_set: str | DataFrame, aspects_mapper: ModelAspectMapper):
+        # Auto maps to aspects_mapper
+        vocabulary = self.generator.emb_model.vocabulary()
+        max_seq_length = self.c.max_seq_len
+        ds = ABAEDataset(test_set, vocabulary, max_seq_length)
+        res = self.get_inference_model().predict(DataLoader(ds, batch_size=512))
+        # ABAE prediction shape: (att, aspect)
+        return [aspects_mapper.map_to_gold(res[1][i]) for i in range(len(res[0]))]

@@ -1,98 +1,154 @@
 \section{Experimental results}
-Generally the first runs without tuning the hyperparameters gave us a broad idea
-of the unoptimized solution quality on the used metrics.
+The first performed runs without tuning the hyperparameters gave us a broad idea
+of the unoptimized solution quality on the evaluated metrics.
 
-Both LDA and ABAE actually had only a small boost in performance by tuning the parameters.
+Both LDA and ABAE actually had only a small boost in performance by tuning the hyperparameters.
+The best identified configurations were then used to make a final evaluation and try compare
+the different models where possible.
 
 \paragraph{LDA}
-At first another processing pipeline was applied for LDA which split sentences and filtered to have nouns only.
-The approach was dropped as the loss of information was too high and the generated model was just unusable.
+At first an additional processing pipeline was applied for LDA which split sentences and filtered to have nouns only.
+The approach was dropped as the loss of information was too high and the generated model was not on par with the others.
 
 Hyperparameter tuning was therefore done on the two datasets: \textit{NOUN-only} and \textit{sentence}
 with final best $K$s being 11 and 7 respectively.
-As expected by the decreasing complexity of the dataset the NOUN models perform better in terms of coherence.
+As expected by the decreasing complexity of the dataset, the noun models perform better in terms of coherence.
 
-Evaluation results are reported in the table and so are the mapped gold aspects.
+Overall coherence results are reported in the table.
 
-
-
-\paragraph{ABAE}
-For ABAE as for LDA was run on the different datasets.
-> cosa ho fatto con ABAE prima di tuning
-
-For ABAE around 20 different configurations for hyperparameters were evaluated.
-Some of these performed slightly better than others but, overall, there only was a minor gain in topic coherence with
-w.r.t the standard configuration that was used during the first attempt.
-
-new scaletta
-- at first glance bad results
-- finer analyis suggests that some aspects are bad cohernec while others good
-- lda
-- results first + tune + final
-- infer table
-- before after tuning results
-- abae
-- results first + tune + final
-- infer table
-- 80k better cohrence ->  unbalanced dataset
-- on non relevant topics
-- before after tuining results
-
-- to finally compare performance of the models a new test set was developed
-
-Results for the project were at first glance underwhelming.
-Topic coherence was overall low.
-This phenomena might be given by the locality and complexity that derives from the fine-grained aspects to identify.
-
-% Table tuning reults
-For ABAE around 20 different configurations for hyperparameters were evaluated.
-Some of these performed slightly better than others but, overall, there only was a minor gain in topic coherence with
-w.r.t the standard configuration that was used during the first attempt.
-
-Measured values for LDA are a little better but still not in optimal ranges for topic modelling applications.
 % todo devi fare coso
 For LDA the best processing pipeline in terms of result did not yield the most interpretable model in fact,
-the sentence model while performing worse returned a more valuable model.
-The identified gold aspects mapped to the identified ones are reported in table. % todo ref table
-From the inferred aspects we see that the model has a hard time distinguishing %todo quali
-which might be given by the fact that the dataset is not balanced well enough.
+the sentence one while performing worse returned resulted by human judgement to be more valuable.
 
-The reviews obtained from BGG mostly talk about complexity and components and less about % vbedi se  qualcosa
-this unbalance in the data could have led to a bad identification of some required aspects.
+\paragraph{ABAE}
+Experiments on ABAE were performed on both the noun and default generation pipelines.
+Initially they were done on a small subset of the dataset.
 
-ABAE results are reported in table.
-The results are less promising in terms of coherence but the found aspects map well to the domain requested
-ones.
-As expected ABAE is able to better extract underlying associations that allows it to recognize more complex relationships
-between potential aspects.
-
-Another possible remark on the results is the processing pipeline while starting directly from the same
-seed and sampling the same reviews works differently than the sentence level.
-
-The splitting procedure produces more records from a more similar context thus probably reducing the
-quality of the reviews.
-
-
-
-Final classification on the dataset are reported in table.
+Hyperparameter tuning was performed on 20 different configurations on the full dataset
+with some performing generally better.
+While in similar ranges of registered loss some more coherent some settings were chosen for a final model generation
+prioritizing overall measured topic coherence and variance on this.
 \begin{center}
     \begin{table}
-        \begin{tabular}{|c l|}
+        \begin{tabular}{c l c}
             \hline
-            Component & Model \\ [0.5ex]
+            Inferred Aspect   & Top relative words                                              & Gold Aspect \\ [0.5ex]
             \hline\hline
-            GPU       & NVIDIA GeForce RTX3070Ti \\
+            Low-complexity    & \textit{accessible, approachable, light, casual}                &                     \\
+            Riddles/Puzzles   & \textit{puzzle, riddle, logic, deductive, reasoning}            & Complex/Complicated \\
+            Convoluted        & \textit{tedious, convoluted, punish, predictable, chaotic}      &                     \\
             \hline
-            CPU       & AMD Ryzen 7 5800x        \\
+            Frustration       & \textit{ready, frustrate, play, stop}                           & Downtime            \\
             \hline
-            RAM       & 32 GB (2x16GB) DDR4      \\
+            Instructions      & \textit{instruction, manual, answer, phrase, interpretation}    & Bookkeeping         \\
             \hline
-            OS        & Windows 11               \\
+            Interaction       & \textit{player, potentially, opponent, investor, passive, vote} &                     \\
+            Cooperation       & \textit{coop, gm, competitively}                                & Interaction         \\
+            Bluffing/Plotting & \textit{speculation, bluffing, partnership, auction}            &                     \\
+            \hline
+            Attack/Protect    & \textit{invade, protect, defend}                                & Bash the leader     \\
+            \hline
+            -                 & \textit{no aspect matched}                                      & Luck                \\
+            \hline
+            Various           & ...                                                             & Misc.               \\
             \hline
         \end{tabular}
-        \caption{Brief overview of the machine specs}
-        \label{specs}
+        \caption{Gold inferred aspects on the final ABAE model trained on the full data (~310k records).
+        One can observe that for \textit{luck} no relation was found.
+        The aspect seems to be hardly separable from the others.
+        The various mapped to "Misc" are not reported but can be looked up in the repository.
+        }
+        \label{best-310}
 
     \end{table}
 
 \end{center}
+
+\begin{center}
+    \begin{table}
+        \begin{tabular}{c l c}
+            \hline
+            Inferred Aspect    & Top relative words                                     & Gold Aspect \\ [0.5ex]
+            \hline\hline
+            Strategy-Asymmetry & \textit{tactic, layer, tactical, strategic, asymetric} & Complex/Complicated \\
+            Weight             & \textit{weight, playtime, length, long}                &                     \\
+            \hline
+            Frustration        & \textit{tend, frustrating, annyoying, drag, problem}   & Downtime            \\
+            Analysis Paralysis & \textit{decision, choice, planning, paralzsis}         &                     \\
+            \hline
+            Game mechanisms    & \textit{scenario, progression, app, ai}                & Bookkeeping         \\
+            Ruleset            & \textit{rule, explain, teach, learn, rulset}           &                     \\
+            \hline
+            Cooperation        & \textit{cooperative, coop, party, family}              & Interaction         \\
+            \hline
+            Player blocking    & \textit{opponent, force, block, avoid}                 & Bash the leader     \\
+            \hline
+            Cards/Dice         & \textit{card, flip, face, dice, randmolu}              & Luck                \\
+            \hline
+            Various            & ...                                                    & Misc.               \\
+            \hline
+        \end{tabular}
+        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (~80k records).
+        It is more balanced comapred to the other observed model that more heavily relies on compelxity and identifies
+        more non relevant aspects for the problem to currently solve.
+        The various mapped to "Misc" are not reported but can be looked up in the repository.
+        }
+        \label{best-80}
+    \end{table}
+
+\end{center}
+
+
+
+\begin{center}
+    \begin{table}
+        \begin{tabular}{c r r r r r}
+            \hline
+            Model        & $\overline{C}$ & $\overline{C}_5$ & $\overline{C'}_5$ & $l$  & Perplexity\\ [0.5ex]
+            \hline
+            ABAE         & -12.62         & -10.65           & -10.16            & 3.98 & n.d.       \\
+            \hline
+            ABAE-small   & -6.72          & -5.49            & -3.63             & 4.06 & n.d.       \\
+            \hline % todo valori
+            NOUN-LDA     & 3.0            & 2.1              & 2                 & -3   & n.d.       \\
+            \hline e % todo valori
+            sentence-LDA & 3.0            & 2.1              & 2                 & -3   & n.d.       \\
+            \hline
+        \end{tabular}
+        \caption{Evaluation results. All evalauted on the same test setw ith $C'$ being the coherence only in relevant aspects.
+        }
+        \label{performance-review}
+
+    \end{table}
+
+\end{center}
+
+
+The best overall configuration was indeed the lowest in loss but, compared to the reduced
+dataset version, it performed way worse in coherence metrics.
+To further investigate the 80k version of the base model was evaluated on the bigger test set.
+Results indicate that there might be some bias towards some topics of interest in the dataset
+that by increasing the dataset size get more relevant.
+
+One could suppose that not only there was bias for some identified aspects but that the extended
+data yielded allowed the model to recognize less prominent patterns.
+
+A last model on the optimal settings but trained on a subset of data was run and the aspects
+associated to gold ones as reported in the association table.
+These seem to be stronger than the ones of the full dataset model.
+
+\paragraph{}
+In the same scenario proposed by the ABAE paper ABAe outperforms LDA by a large margin.
+The identified aspects also better map to the searched gold standards.
+
+Interestingly this was not true for the NOUN only version of LDA that was more coherent.
+Despite giving a better expected performance the mapped aspects were not
+as convincing during human evaluation and unable to recognize some required aspects.
+This could be related to the loss of contextual information that relate well to
+some aspects like downtime where most times it is referred as a frustrating activity
+often associated with a negative adjective value thing that is lost by this approach.
+
+Some aspects tend to overlap as well as downtime is often related to bookkeeping and
+luck is a crucial element in the discussion of complexity of games.
+
+Final classification on the dataset are reported in table \ref{performance-review}.
