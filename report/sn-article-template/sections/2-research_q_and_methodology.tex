@@ -33,8 +33,6 @@ The final designed and used pipelines are:
     \item {\textit{default-sentence}}: Is a slight modification on the \texit{default} pipeline in which
     at the start of the process reviews are split on sentences by a sentence splitter (\textit{spacy}).
     These lines are considered entries of the dataset instead of the full comment.
-
-    \item {\textit{NOUN-sentence}}: Applies the sentence splitting logic to the \texit{NOUN} pipeline.
 \end{itemize}
 
 After running a pipeline any duplicated review is discarded to avoid having repetitions and further introducing
@@ -103,13 +101,14 @@ $$ J(\theta) = \sum_{s\in D}\sum_{i=1}^m \max(0, 1 - r_sz_s + r_sn_i)$$
 
 The size of the negative samples for the loss computation was fixed to $20$.
 
-As for optimizer \textit{adam} has been chosen as for the original ABAE proposal.
-Although \textit{SGD} is as effective and less bloated\cite{wilson2018marginal} the gain on
-the convergence speed is enough to keep this setting.
+For the optimizer \textit{adam} was chosen for two main reasons.
+The first one is that it was the optimizer used in the original ABAE proposal.
+Secondly, although \textit{SGD} is as effective\cite{wilson2018marginal} and less bloated
+by variables, the gain in convergence speed is considerate.
 
-The first run on the not tuned model was performed on the default setting of the ABAE paper.
-Unlike LDA, for time constraint reasons, applying k-fold CV in the hyperparameter tuning phase was not possible.
-The dataset should be big enough to opt for the classic cross validation approach.
-The tuned hyperparameters are: learning rate, epochs, batch size, embedding size and aspect size.
+The first run on the not model was performed by using the default setting applied in the ABAE paper.
+Unlike LDA applying k-fold CV in the hyperparameter tuning phase was not possible as the model is too complex.
+For this reason classic cross validation was used as the dataset should be big enough.
+The tuned hyperparameters are: \textit{learning rate, epochs, batch size, embedding size and aspect size}.
 The best found configuration is then run on the full data and evaluated according to our metrics.
-Model comparison was both done on coherence and max-margin loss.
+Comparison between ABAE instances was done on coherence and max-margin loss.
