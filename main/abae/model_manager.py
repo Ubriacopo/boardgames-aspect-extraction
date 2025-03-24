@@ -61,6 +61,7 @@ class ABAEManager:
         if not override and Path(embeddings_file).exists():
             emb_model = Word2VecWrapper.from_existing(embeddings_file)
         else:
+            print("New model for word2vec will be generated")
             emb_model = Word2VecWrapper(config.embedding_size, config.min_word_count, config.max_vocab_size)
             emb_model.generate(CorpusLoaderUtility(column_name="comments").load(corpus_path))
             emb_model.persist(embeddings_file)
@@ -71,6 +72,7 @@ class ABAEManager:
         if not override and Path(aspect_embeddings_file).exists():
             aspect_model.load_existing(aspect_embeddings_file)
         else:
+            print("New model for aspects will be generated")
             aspect_model.generate(emb_model.weights())
             aspect_model.persist(aspect_embeddings_file)
 
@@ -94,9 +96,6 @@ class ABAEManager:
         return self.__train_model
 
     def train(self, df: str | DataFrame, verbose: int = 1):
-        if type(df) is str:
-            df = pd.read_csv(df)
-
         vocabulary = self.generator.emb_model.vocabulary()
         ds = PositiveNegativeABAEDataset(df, vocabulary, self.c.max_seq_len, self.c.negative_sample_size)
 

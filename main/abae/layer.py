@@ -22,7 +22,6 @@ class Attention(Layer):
 
     def build(self, input_shape):
         self.steps = input_shape[1]
-
         self.w = self.add_weight(name='{}_W'.format(self.name), shape=(input_shape[-1], input_shape[-1]))
         super(Attention, self).build(input_shape)
 

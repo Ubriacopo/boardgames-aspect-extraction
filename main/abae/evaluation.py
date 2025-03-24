@@ -24,6 +24,8 @@ class ABAEEvaluationProcessor:
         # Word Vector (Like Gensim names)
         self.wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
         # Aspect Vector (Like Gensim names)
+        # TODO Esiste differenza?
+        # self.av = normalize(model.get_layer(index=7).weights[0].value.data, dim=-1) WEIGHT
         self.av = normalize(model.get_layer(index=7).w, dim=-1)
         self.calculated_aspects: list = []
 
@@ -53,7 +55,7 @@ class ABAEEvaluationProcessor:
             verbose and print("Word: ", self.inverse_vocabulary[w], f"({similarity[w]})")
             yield self.inverse_vocabulary[w], similarity[w]
 
-    def __prepare_aspects(self, top_n: int):
+    def prepare_aspects(self, top_n: int):
         if len(self.calculated_aspects) >= top_n:
             return self.calculated_aspects
         n = len(self.av)  # Number of aspect vectors (av is named like wv - aspect_vector)
@@ -63,7 +65,7 @@ class ABAEEvaluationProcessor:
 
     def u_mass_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
         if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
-            aspects = self.__prepare_aspects(top_n)
+            aspects = self.prepare_aspects(top_n)
 
         dictionary = corpora.Dictionary()
         dictionary.token2id = self.vocabulary
@@ -73,6 +75,16 @@ class ABAEEvaluationProcessor:
         corpus = [dictionary.doc2bow(doc) for doc in df]
         # TODO Vedi se passando array piu piuccolo di aspects va meglio ed è sbaglaito passare sempre max
         return CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=top_n)
+
+    def c_v_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
+        if aspects is None or len(aspects) == 0 or len(aspects[0]) < top_n:
+            aspects = self.prepare_aspects(top_n)
+        df = self.df['comments'].swifter.apply(lambda x: x.split())
+
+        dictionary = corpora.Dictionary()
+        dictionary.token2id = self.vocabulary
+        return CoherenceModel(topics=aspects, texts=df, dictionary=dictionary, coherence='c_v', topn=top_n)
+
 
     def silhouette_score(self, model: keras.Model, inference_model: keras.Model):
         if self.df is None:

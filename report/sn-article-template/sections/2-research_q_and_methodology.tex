@@ -8,7 +8,7 @@ The API lacks a direct method for listing all boardgames, reason for the existen
 repository ?todo ntoa pie pagina con link?.
 
 To tackle possible issues of the raw data, various different pre-processing pipelines were designed
-using modular processing components combined.
+by using modular processing components.
 Some of the scrapped comments were subject to special formatting that was removed by applying some regexes.
 For data constraints it is desirable to work on one language only but users do not have to explicit the language of their reviews.
 Thus, all pipelines share a filter on the language of the comments, removing all non english ones.
@@ -54,25 +54,24 @@ The values of the metric lie in the interval $(-\infty, 0)$ where values closer 
 This is the only metric shared among different model architectures.
 
 \subsection{Developed models}
-Once the processed dataset generation has been completed we try the two different approaches to see the best way
-to process for each task. Both starting points have been intialized with a 'standard' set of hyperparameters
-to later be tuned.
-
+The first trained models have been initialized on a "standard" set of hyperparameters.
+Hyperparameter optimization followed.
 The best found configuration is then run on the full data and evaluated according to our metrics.
-The top words for each topic, or aspect in our application, are extracted from each topic to match it a possible
-gold standard of the task we are working on.
+The top words of each found aspect are extracted and mapped by hand on the possible required gold standards.
+If none match these are mapped to a generic "Misc." label.
+
 This mapping is wrapped in a lookup class that takes the output of the model and refines it to the mapped aspects.
 Values of indices mapped to the same aspect are aggregated (summed) together as the topic becomes more relevant.
 
 \subsubsection{LDA}
 % todo rileggi
-LDA elaboration is not a computation heavy task for modern standards therefore I experiment the different
-preprocessing pipelines with ease.
+LDA elaboration is not a computation heavy task for modern standards therefore experiments on the different
+preprocessing pipelines were performed with ease.
 These results stand as baseline before performing hyperparameter tuning.
 
 The hypermodel has various hyperparameters($K,\alpha, \eta$) but the most important of all is $K$: the number of topics.
 The hyperparameters tuning procedure, like for ABAE, is done without applying advanced approaches like bayesian optimization.
-It simply applied a random search heuristic knowing that, for enough configurations, it generally outperforms grid search.
+It simply applied a random search heuristic knowing that, for enough configurations, it generally outperforms grid search. % todo ref
 
 Thanks to the low computational cost when working on LDA K-fold CV on each seen configuration could be applied.
 This allowed to draw better conclusions on the various configurations and asses their actual performance.
@@ -87,17 +86,23 @@ The overall structure of ABAE can be described as:
 \begin{itemize}
     \item {\textbf{Embeddings}}: Generation of embeddings for each word in a \textit{bag of words} input.
     The embeddings model we use is an implementation of \texit{Word2Vec} and runs on the default parameters defined by the \textit{gensim} library.
-    \item {\textbf{Attention}}: Filter the embeddings in the sentence using an attention mechanism.
+    \item {\textbf{Attention}}: Weight the embeddings in the sentence using an attention mechanism.
     \item {\textbf{Autoencoder}}: The weighted embeddings are passed to an auto-encoder that reduces the dimensional
     space to the target \textit{aspect} size and reconstructs the attention weighted input.
     On this is then evaluated the \textit{max-margin} loss.
 \end{itemize}
 
-To train ABAE, as proposed by the original paper, we use \textit{max-margin} loss.
-A metric that measures the distance between the reconstructed sample by the autoencoder and the negative samples
-provided for one training iteration.
-It is defined as:
-$$ J(\theta) = \sum_{s\in D}\sum_{i=1}^m \max(0, 1 - r_sz_s + r_sn_i)$$
+To train ABAE, as proposed by the original paper, the \textit{contrastive max-margin} loss was used.
+% todo non é definizione corretta?
+During the training phase a sample of sentences to act as opposed to the input sentence is needed.
+This additional set of reviews are used to compute the loss after decoding is performed.
+We refer to these as \textit{negative samples}.
+The loss is so defined as a \textit{hinge} loss that maximized the distance between the decoded embedding ($r_s$)
+and the averaged negative samples embeddings ($n_i$) while also minimizing the distance with the attention weighted sentence embedding ($z_s$).
+Being all values from the same \textit{embeddings} space the distance is measured by dot product.
+
+More strictly the \textit{contrastive max-margin} loss:
+$$J(\theta) = \sum_{s\in D}\sum_{i=1}^m \max(0, 1 - r_sz_s + r_sn_i)$$
 
 The size of the negative samples for the loss computation was fixed to $20$.
 
@@ -106,7 +111,7 @@ The first one is that it was the optimizer used in the original ABAE proposal.
 Secondly, although \textit{SGD} is as effective\cite{wilson2018marginal} and less bloated
 by variables, the gain in convergence speed is considerate.
 
-The first run on the not model was performed by using the default setting applied in the ABAE paper.
+The first run on the model was performed by using the default setting applied in the ABAE paper.
 Unlike LDA applying k-fold CV in the hyperparameter tuning phase was not possible as the model is too complex.
 For this reason classic cross validation was used as the dataset should be big enough.
 The tuned hyperparameters are: \textit{learning rate, epochs, batch size, embedding size and aspect size}.

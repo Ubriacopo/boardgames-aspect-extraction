@@ -1,36 +1,32 @@
 \section{Concluding remarks}
+The results do not compare well with what hoped as the more complex solutions yield worse metric values.
+Some possible issues in the approach were most probably in the processing of the data as the pipeline may be
+too aggressive and degrade the structure of the information needed by ABAE.
 
-While it is not possible to estimate a real application usage of the model the
-coherence score tells use enough about the models on the dataset.
-The results do not compare well with what hoped as the more complex solution yields a worse metric value.
+If not the processing pipeline the real problem could be the dataset itself.
+Reviews might be too similar or generally unbalanced, therefore, to measure the quality of it could
+be a first step in order to understand how to improve the results.
 
-Some possible issues in the approach were most probably in the processing of the data.
-At posterior analysis maybe mapping the numbers all to a single num tag might have hurt the final model.
-This could mean that the processing pipeline may be too aggressive and degraded the data.
+Another note is that the scrapped dataset from BGG is assumed to contain a good portion of reviews citing
+the searched aspects, but we have no guarantee of it.
+In fact the platform itself is actually known to be very biased towards complex games: of the top 20 ranked
+games only 3 have a weight rating below 3 ("Monopoly" for comparison has a score of \~1.62)
+\footnote{Ranking was inspected as for 03/2025}
 
-If not the processing pipeline the real problem could be the dataset.
-Reviews might be too similar and therefore measure the quality of it could also be a step to improve the results.
-Also, the scrapped dataset from BGG is assumed to contain a good portion of reviews citing the searched aspects,
-but we have no guarantee of it.
-This could be improved by applying some heuristic or exploiting information given by BGG when downloading the reviews.
-An idea could be to use the complexity rating of a game.
-We could suppose that games with high or low complexity are most likely to cite this characteristic in reviews.
+To improve the overall dataset quality additional information given by BGG should have been exploited.
+A simple idea would be the one to use the complexity rating of a game hoping that high or low complexity games
+are the most likely ones to cite thi characteristic in reviews.
 Other ideas like this could be studied.
 
-
-Another idea that could be applied is that to run the found model to filter out reviews that too harshly rely
+Another idea that could be applied is to run the found model to filter out reviews that too harshly rely
 on identified aspects that do not fit the requirements, e.g. "Game components".
-This way we would be using a first, more general, model that allows us to specialize our dataset better.
+This way we would be using a first more general model that allows us to specialize our dataset better.
 From the new dataset a new model could be studied that probably would achieve better quality measured by the metric.
 
-Lastly for ABAE fixing the negative sample size might have been a mistake.
-Twenty reviews opposed to a single in contrastive learning in a low complexity dataset, which
-might be our case, is reason for the underwhelming performance of the neural model.
+An ensemble method of the multiple generated models is also an option but that would require to find a way to give more
+weight to one model compared to the other and ultimately is better done with a test set.
 
-- If not the quality of the dataset more data should be provided to effectively train ABAE as known
-that neural models require more data compared to simpler approaches, which compares with LDA right now.
+In the end it cannot be state if the low coherence ABAE model performs worse in the identification task
+without the test set.
+Ultimatively the quality of the dataset should have been better took care for and studied.
 
-
-In the end the quality of the dataset should have been better took care for.
-
-+ ensemble could be made
