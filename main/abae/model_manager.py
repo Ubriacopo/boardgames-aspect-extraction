@@ -55,7 +55,6 @@ class ABAEManager:
     @classmethod
     def from_config(cls, config: ABAEManagerConfig, corpus_path: str, override: bool = False, model_class=ABAE):
         # Make embeddings
-        corpus = CorpusLoaderUtility(column_name="comments").load(corpus_path)
         embeddings_file = f"{config.output_path()}/{config.name}.embeddings.model"
 
         emb_model: Word2VecWrapper
@@ -63,7 +62,7 @@ class ABAEManager:
             emb_model = Word2VecWrapper.from_existing(embeddings_file)
         else:
             emb_model = Word2VecWrapper(config.embedding_size, config.min_word_count, config.max_vocab_size)
-            emb_model.generate(corpus)
+            emb_model.generate(CorpusLoaderUtility(column_name="comments").load(corpus_path))
             emb_model.persist(embeddings_file)
 
         aspect_embeddings_file = f"{config.output_path()}/{config.name}.aspect_embeddings.model"

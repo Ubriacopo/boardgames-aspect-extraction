@@ -41,7 +41,7 @@ class KerasModelGenerator(ModelGenerator):
 
             if existing_model is not None:
                 return existing_model  # The model could be loaded with success
-
+        print("Making model from scratch...")
         inputs, outputs = self.make_layers()
         # The model is not compiled. Compilation is delegated
         return keras.Model(inputs=inputs, outputs=outputs[0])
