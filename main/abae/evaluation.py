@@ -69,8 +69,9 @@ class ABAEEvaluationProcessor:
         dictionary.token2id = self.vocabulary
 
         # BOW creation
-        df = self.df['comments'].swifter.apply(lambda x: x.split(' '))
+        df = self.df['comments'].swifter.apply(lambda x: x.split())
         corpus = [dictionary.doc2bow(doc) for doc in df]
+        # TODO Vedi se passando array piu piuccolo di aspects va meglio ed è sbaglaito passare sempre max
         return CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=top_n)
 
     def silhouette_score(self, model: keras.Model, inference_model: keras.Model):
