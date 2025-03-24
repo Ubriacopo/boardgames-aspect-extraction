@@ -50,7 +50,7 @@ class ABAE(BaseABAE):
 
         aspect_pred = Dense(aspect_size, activation='softmax', name='sentence_aspect')(w_s_emb)
         w_aspect_emb_layer = WeightedAspectEmbedding(
-            emb_size, self.aspect_model.weights(), OrthogonalRegularizer()
+            emb_size, self.aspect_model.weights(), OrthogonalRegularizer(factor=0.1)
         )
 
         r_w_emb = w_aspect_emb_layer(aspect_pred)

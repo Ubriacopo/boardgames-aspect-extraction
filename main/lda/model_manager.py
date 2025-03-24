@@ -44,13 +44,8 @@ class LDAManager:
         results['perplexity'] = self.__model.log_perplexity(test_corpus.apply(lambda x: dictionary.doc2bow(x)).tolist())
 
         for topn in results['topn']:
-            dictionary = corpora.Dictionary()
-            corpus = [dictionary.doc2bow(doc, allow_update=True) for doc in test_corpus]
-
-            model = CoherenceModel(
-                model=self.__model, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=topn
-            )
-
+            corpus = [dictionary.doc2bow(doc, allow_update=False) for doc in test_corpus]
+            model = CoherenceModel(self.__model, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=topn)
             results['coherence'].append(model.get_coherence())
 
         return results
