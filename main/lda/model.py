@@ -1,6 +1,3 @@
-import os
-
-from gensim.corpora import Dictionary
 from gensim.models import LdaModel, LdaMulticore
 from pandas import DataFrame
 
@@ -26,13 +23,3 @@ class LdaModelGenerator:
             corpus=ds.dataset, id2word=ds.dict, num_topics=self.c.topics, alpha=self.c.alpha,
             eta=self.c.eta, passes=self.c.passes, random_state=self.c.random_state
         )
-
-
-# todo
-class LdaClassifier:
-    def __init__(self, mapped_labels: list[str], model: LdaDataset):
-        self.mapped_labels = mapped_labels
-        self.model = model
-
-    def classify(self, corpus):
-        return self.model.process_dataset(corpus)

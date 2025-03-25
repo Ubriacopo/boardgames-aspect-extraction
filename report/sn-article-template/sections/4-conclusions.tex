@@ -1,40 +1,34 @@
 \section{Concluding remarks}
-The results do not compare well with what hoped as the more complex solutions yield worse metric values.
-Some possible issues in the approach were most probably in the processing of the data as the pipeline may be
-too aggressive and degrade the structure of the information needed by ABAE.
+The results do not compare well with initial expectations, as more complex solutions yield worse metric values.
+Some possible issues in the approach might have during data pre-processing.
+The pipelines could be too aggressive thus degrading the structure of the information ABAE requires.
 
 If not the processing pipeline the real problem could be the dataset itself.
-Reviews might be too similar or generally unbalanced, therefore, to measure the quality of it could
-be a first step in order to understand how to improve the results.
+Reviews might be too similar or generally unbalanced in topics.
+In fact BGG is known to be very biased towards complex games: of the top 20 ranked
+only 3 have a weight rating below 3 ("Monopoly" for comparison is ~1.62)\footnote{Ranking was inspected as for 03/2025}.
+Based on this, we can expect the topic to gain more focus from the community.
 
-Another note is that the scrapped dataset from BGG is assumed to contain a good portion of reviews citing
-the searched aspects, but we have no guarantee of it.
-In fact the platform itself is actually known to be very biased towards complex games: of the top 20 ranked
-games only 3 have a weight rating below 3 ("Monopoly" for comparison has a score of \~1.62)
-\footnote{Ranking was inspected as for 03/2025}
-
+Assuming that all gold aspects can be inferred by the scrapped reviews
+is a required assumption by the approach, but it could not be the reality.
 To improve the overall dataset quality additional information given by BGG should have been exploited.
-A simple idea would be the one to use the complexity rating of a game hoping that high or low complexity games
-are the most likely ones to cite thi characteristic in reviews.
-Other ideas like this could be studied.
+The complexity rating could have been a possible filter to retrieve a list of games from which to draw
+comments that we could suppose to be more likely to cite the "Complicated/Complex" aspect.
 
-Another idea that could be applied is to run the found model to filter out reviews that too harshly rely
+Next steps could involte exploiting the found models to filter out reviews that too harshly rely
 on identified aspects that do not fit the requirements, e.g. "Game components".
-This way we would be using a first more general model that allows us to specialize our dataset better.
-From the new dataset a new model could be studied that probably would achieve better quality measured by the metric.
+This way we would be building a more refined dataset that might be used achieve better identification on a completely new model.
 
-An ensemble method of the multiple generated models is also an option but that would require to find a way to give more
-weight to one model compared to the other and ultimately is better done with a test set.
+A possible note on the low performance of ABAE is the low range of aspect values
+during the hyperparameter tuning process.
+The range was set to $[7,20]$ but unlike what supposed, it seems that the data is way more complex in our
+project than the one used by other applications involving ABAE.
+By increasing the number of aspects there
+a better separation of topics while also increasing overall coherence can be observed.
+This would also explain why the \texit{80k} ABAE performs better:
+some patterns that are recognizable in the larger dataset are not distinguishable enough in the smaller one.
 
-A possible note on the low performance of ABAE is the mistakenly assumed range of parameters
-during hyperparameter tuning as a range of $[7,20]$ was used for the aspect size.
-Unlike what supposed it seems that the data is way more complex in our project than the one
-used by other applications involving ABAE. By increasing the number of aspects there was indeed
-a better separation of topics while also increasing overall coherence.
-This would also explain why on a smaller dataset ABAE performs better, the data is less various
-and some patterns that are recognizable in the big one are not so for the
-
-In the end it cannot be state if the low coherence ABAE model performs worse in the identification task
-without the test set.
-Ultimatively the quality of the dataset should have been better took care for and studied.
+In the end it cannot be truly stated if the lower coherence in ABAE models results
+in worse aspect identifications without a real test set.
+Ultimately the quality of the dataset should have been better took care for and studied.
 

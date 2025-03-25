@@ -38,7 +38,7 @@ def max_margin_loss(y_true, y_pred):
     return K.mean(y_pred, axis=-1)
 
 
-# TODO: Vedi se devi fare accorgimenti per i due modelli
+
 class ModelAspectMapper:
     LUCK: str = "luck"
     BOOKKEEPING: str = "bookkeeping"
@@ -49,6 +49,10 @@ class ModelAspectMapper:
     MISC: str = "misc"
 
     def __init__(self, aspects: int):
+        """
+        Class that maps the output of a model to the gold standard classes based on a mapping
+        @param aspects: Number of aspects identified by the model
+        """
         self.aspect_size = aspects
         self.mappings = {i: '' for i in range(aspects)}
         self.gold_aspects = ["luck", "bookkeeping", "downtime", "interaction", "bash", "complex/complicated", "misc"]

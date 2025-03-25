@@ -4,7 +4,6 @@ from pathlib import Path
 import swifter
 import pandas as pd
 import spacy
-import torch
 from fast_langdetect import detect
 from pandas import Series
 from spacy import Language
