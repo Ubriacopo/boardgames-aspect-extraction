@@ -1,32 +1,24 @@
 \section{Research question and methodology}
-The problem to solve is a classification one.
-In order to identify the aspects defined by the requirements we have to first retrieve a dataset.
 
 \subsection{Dataset and pre-processing}
 BGG offers a simple yet effective API to scrap data from their platform.
-The API lacks a direct method for listing all boardgames, reason for the existence of a dedicated game information
-repository ?todo ntoa pie pagina con link?.
+It lacks a direct method for listing boardgames, these have been taken from a generated dump.
 
 To tackle possible issues of the raw data, various different pre-processing pipelines were designed
 by using modular processing components.
-Some of the scrapped comments were subject to special formatting that was removed by applying some regexes.
 For data constraints it is desirable to work on one language only but users do not have to explicit the language of their reviews.
 Thus, all pipelines share a filter on the language of the comments, removing all non english ones.
 
-A good portion of the reviews on BGG do not actually give an insight on the game aspects we are inspecting,
-but focus strictly on the experience and quality of service of the product coming from a popular crowdfunding platform like "Kickstarter".
-To avoid having many redundant and low information records in the dataset, and so give more space to possible informative ones,
-we apply the simple heuristic of filtering out any review containing some keywords related to it (e.g. "ks", "pledge").
+A good portion of the reviews on BGG do not actually give an insight on the required game aspects.
+Some focus strictly on the experience and quality of service of the product coming from the popular crowdfunding platforms (e.g. "Kickstarter").
+To avoid having these low information records in the dataset the simple heuristic of filtering out reviews containing the related keywords (e.g. "ks", "pledge") was applied.
 
-Reviews are in every iteration split on recognized words and transformed to their lemma thanks to a pre-trained
-POS tagger and processor: \textit{spacy}.
+Reviews were tokenized and lemmatized thanks to a pre-trained POS tagger and processor: \textit{spacy}.
 To further reduce redundant and undesired information the pre-processing pipeline maps game names and numbers to generic tags.
-Another step all pipelines have in common is to filter out too short review as we expect to hardly learn anything new from them.
+Another step all pipelines have in common is to filter out short review as we expect to hardly learn anything new from them.
 
-The final designed and used pipelines are:
+Besides a "\textit{default}" built pipeline two more were defined as:
 \begin{itemize}
-    \item {\textit{default}}: The default pipeline refers to ABAE specification.
-
     \item {\textit{NOUN}}: Takes a spin on the default pipeline by filtering all words that are not recognized as nouns
     by the used tagger. % todo ref a paere che lavora su noun only
 
@@ -35,11 +27,7 @@ The final designed and used pipelines are:
     These lines are considered entries of the dataset instead of the full comment.
 \end{itemize}
 
-After running a pipeline any duplicated review is discarded to avoid having repetitions and further introducing
-bias in the dataset.
-
-All the pipelines have been used for an initial generation of models but only for the LDA hyperparameter
-tuning the work progressed on more than one of them. This is simply because ABAE is very time consuming while LDA is not.
+After running a pipeline duplicates are discarded to avoid increasing bias in the dataset.
 
 \subsection{Metrics}
 % todo
@@ -55,49 +43,30 @@ This is the only metric shared among different model architectures.
 
 \subsection{Developed models}
 The first trained models have been initialized on a "standard" set of hyperparameters.
-Hyperparameter optimization followed.
-The best found configuration is then run on the full data and evaluated according to our metrics.
-The top words of each found aspect are extracted and mapped by hand on the possible required gold standards.
-If none match these are mapped to a generic "Misc." label.
+Hyperparameter optimization by random search followed.
+The best found configuration is then run on the full data and evaluated according to the selected metrics.
+The top words of each found aspect are extracted and mapped by hand the gold standards where possible.
 
-This mapping is wrapped in a lookup class that takes the output of the model and refines it to the mapped aspects.
-Values of indices mapped to the same aspect are aggregated (summed) together as the topic becomes more relevant.
+The mapping is then wrapped in a lookup class that maps the model outputs to the required aspects.
+Values belonging to the same aspect are aggregated together as it becomes more relevant.
 
 \subsubsection{LDA}
 % todo rileggi
 LDA elaboration is not a computation heavy task for modern standards therefore experiments on the different
 preprocessing pipelines were performed with ease.
-These results stand as baseline before performing hyperparameter tuning.
+During hypermarket tuning focus went to the most important one: the number of topics $K$.
+For LDA K-fold CV on each seen configuration could be applied.
 
-The hypermodel has various hyperparameters($K,\alpha, \eta$) but the most important of all is $K$: the number of topics.
-The hyperparameters tuning procedure, like for ABAE, is done without applying advanced approaches like bayesian optimization.
-It simply applied a random search heuristic knowing that, for enough configurations, it generally outperforms grid search. % todo ref
-
-Thanks to the low computational cost when working on LDA K-fold CV on each seen configuration could be applied.
-This allowed to draw better conclusions on the various configurations and asses their actual performance.
-
-Models were evaluated based on the coherence for some top-k words and the LDA overall perplexity.
-The final model was trained on the full data and later evaluated.
+Configurations were chosen based on the average coherence for some top-k words and the overall \textit{perplexity}.
+The final model was trained on the full data.
 
 \subsubsection{ABAE}
-For ABAE complexity rises.
-
-The overall structure of ABAE can be described as:
-\begin{itemize}
-    \item {\textbf{Embeddings}}: Generation of embeddings for each word in a \textit{bag of words} input.
-    The embeddings model we use is an implementation of \texit{Word2Vec} and runs on the default parameters defined by the \textit{gensim} library.
-    \item {\textbf{Attention}}: Weight the embeddings in the sentence using an attention mechanism.
-    \item {\textbf{Autoencoder}}: The weighted embeddings are passed to an auto-encoder that reduces the dimensional
-    space to the target \textit{aspect} size and reconstructs the attention weighted input.
-    On this is then evaluated the \textit{max-margin} loss.
-\end{itemize}
-
 To train ABAE, as proposed by the original paper, the \textit{contrastive max-margin} loss was used.
 % todo non é definizione corretta?
-During the training phase a sample of sentences to act as opposed to the input sentence is needed.
+During the training phase a sample of sentences that acts opposed to the input sentence is needed.
 This additional set of reviews are used to compute the loss after decoding is performed.
 We refer to these as \textit{negative samples}.
-The loss is so defined as a \textit{hinge} loss that maximized the distance between the decoded embedding ($r_s$)
+The loss is so defined as a \textit{hinge loss} that maximizes the distance between the decoded embedding ($r_s$)
 and the averaged negative samples embeddings ($n_i$) while also minimizing the distance with the attention weighted sentence embedding ($z_s$).
 Being all values from the same \textit{embeddings} space the distance is measured by dot product.
 
@@ -112,8 +81,7 @@ Secondly, although \textit{SGD} is as effective\cite{wilson2018marginal} and les
 by variables, the gain in convergence speed is considerate.
 
 The first run on the model was performed by using the default setting applied in the ABAE paper.
-Unlike LDA applying k-fold CV in the hyperparameter tuning phase was not possible as the model is too complex.
-For this reason classic cross validation was used as the dataset should be big enough.
+Instead of K-fold CV classic CV was used.
 The tuned hyperparameters are: \textit{learning rate, epochs, batch size, embedding size and aspect size}.
 The best found configuration is then run on the full data and evaluated according to our metrics.
 Comparison between ABAE instances was done on coherence and max-margin loss.

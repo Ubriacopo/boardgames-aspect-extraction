@@ -59,7 +59,7 @@ LDA has shown to be quite effective before the arrival of Transformers. A limit 
 is more fine-grained than simple topic modelling.
 To tackle this problem I decided to explore two possible solutions:
 \begin{itemize}
-    \item{\textit{Local-LDA}}: A commonly used tweak on LDA.
+    \item{\textit{Local-LDA}}: A commonly used tweak on LDA in aspect extraction.
 
     We feed the model sentences so that the topic extraction is local.
     % todo scrivi in conclusioni che LocalLDA era underwhelming per via del fatto che le review sono al piu solitmante righe.
@@ -70,12 +70,17 @@ To tackle this problem I decided to explore two possible solutions:
 \end{itemize}
 
 \paragraph{Attention Based Aspect Extraction}
-When ABAE was introduced the developers aimed to tackle the pitfalls of LDA and is based on two core concepts: Embeddings and Attention.
-% todo continua
-More precisely ABAE is a form of autoencoder where the feature matrix encodes a set of aspect embeddings.
-The input generated embeddings of a sentence are weighted by an attention mechanism ?ref to paper di attention?
-that helps the process to focus on relevant parts of the input sentence.
-The training objective of the model is to minimize the difference between the decoded input embedding, sentence reconstruction,
+When ABAE was introduced the developers aimed to tackle the pitfalls of LDA.
+The overall structure of ABAE can be described as:
+\begin{itemize}
+    \item {\textbf{Embeddings}}: Generation of embeddings for each word in a \textit{bag of words} input.
+    The embeddings model we use is an implementation of \texit{Word2Vec} and runs on the default parameters defined by the \textit{gensim} library.
+    \item {\textbf{Attention}}: Weight the embeddings in the sentence using an attention mechanism.
+    \item {\textbf{Autoencoder}}: The weighted embeddings are passed to an auto-encoder that reduces the dimensional
+    space to the target \textit{aspect} size and reconstructs the attention weighted input.
+\end{itemize}
+
+The training objective of the model is to minimize the difference between the decoded sentence reconstruction
 and the originally calculated sentence embedding.
 
 \paragraph{}
@@ -86,33 +91,12 @@ take a deeper look in the coming section.
 \subsection{Experimental Setup and Development Environment}
 All the training procedures and notebooks were ran locally.
 
-To make full use of the GPU power, CUDA drivers were needed. The project ran on CUDA 11.8.
-To implement the ABAE model Keras was used with a Pytorch backend.
-This choice was pivoted by the fact that PyTorch is very popular among the research community.
-Libraries and other references are listed in the GitHub repository\cite{Fichera_Muffin_vs_Chihuahua_2024}
+To make full use of the GPU power (\textit{NVIDIA RTX 3070Ti}), dedicated drivers were needed.
+The project ran on CUDA 11.8.
+A PyTorch backend was used.
+This choice was pivoted by the fact that the technology is very popular among the research community.
+Libraries and other references are listed in the GitHub repository\cite{Fichera_Muffin_vs_Chihuahua_2024}.
 
 For reproducibility purposes all seeds are set in the code.
-
-\begin{center}
-    \begin{table}
-        \begin{tabular}{|c l|}
-            \hline
-            Component & Model \\ [0.5ex]
-            \hline\hline
-            GPU       & NVIDIA GeForce RTX3070Ti \\
-            \hline
-            CPU       & AMD Ryzen 7 5800x        \\
-            \hline
-            RAM       & 32 GB (2x16GB) DDR4      \\
-            \hline
-            OS        & Windows 11               \\
-            \hline
-        \end{tabular}
-        \caption{Brief overview of the machine specs}
-        \label{specs}
-
-    \end{table}
-
-\end{center}
 
 

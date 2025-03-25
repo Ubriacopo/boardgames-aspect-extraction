@@ -18,7 +18,7 @@ The NOUN model was unable to recognize some key requirements this probably given
 The sentence model also resulted under-segmented and did not align with the requirements.
 For this reason a higher promising value from hyperparameter optimization of $K=13$ was selected
 to see if the solution could be improved.
-The new model indeed outperformed the best expected model with $K=7$ in both \textit{topic coherence} and \textit{perplexity}.
+The new model outperformed the best expected model in both \textit{topic coherence} and \textit{perplexity}.
 
 
 \begin{center}
@@ -27,30 +27,26 @@ The new model indeed outperformed the best expected model with $K=7$ in both \te
     \begin{table}
         \begin{tabular}{c l c}
             \hline
-            Inferred Aspect   & Top relative words                                              & Gold Aspect \\ [0.5ex]
+            Inferred Aspect         & Top relative words                                     & Gold Aspect \\ [0.5ex]
             \hline\hline
-            Low-complexity    & \textit{accessible, approachable, light, casual}                &                     \\
-            Riddles/Puzzles   & \textit{puzzle, riddle, logic, deductive, reasoning}            & Complex/Complicated \\
-            Convoluted        & \textit{tedious, convoluted, punish, predictable, chaotic}      &                     \\
+            Strategy/Depth          & \textit{strategy, time, mechanic, depth}               &                     \\
+            Target/Difficulty       & \textit{puzzle, engine, adult, child}                  & Complex/Complicated \\
             \hline
-            Frustration       & \textit{ready, frustrate, play, stop}                           & Downtime            \\
+            -                       & \textit{-}                                             & Downtime            \\
             \hline
-            Instructions      & \textit{instruction, manual, answer, phrase, interpretation}    & Bookkeeping         \\
+            Game Mechanics/Rulebook & \textit{rule, placement,worker, rulebook, system}      & Bookkeeping         \\
             \hline
-            Interaction       & \textit{player, potentially, opponent, investor, passive, vote} &                     \\
-            Cooperation       & \textit{coop, gm, competitively}                                & Interaction         \\
-            Bluffing/Plotting & \textit{speculation, bluffing, partnership, auction}            &                     \\
+            Interaction             & \textit{player, interaction, turn, strategy, decision} & Interaction         \\
             \hline
-            Attack/Protect    & \textit{invade, protect, defend}                                & Bash the leader     \\
+            Player track            & \textit{action, turn, player, opponent, victory}       & Bash the leader     \\
             \hline
-            -                 & \textit{no aspect matched}                                      & Luck                \\
+            High/Low luck           & \textit{dice, roll, puzzle, euro, luck}                & Luck                \\
             \hline
-            Various           & ...                                                             & Misc.               \\
+            Various                 & ...                                                    & Misc.               \\
             \hline
         \end{tabular}
-        \caption{Gold inferred aspects on the final NOUN-LDA ($K =13$) model trained on the full data (~310k records).
-        One can observe that for \textit{luck} no relation was found.
-        The aspect seems to be hardly separable from the others.
+        \caption{Gold inferred aspects on the final NOUN-LDA ($K=13$) model trained on the full data (~310k).
+        Interaction seems to overlap with downtime.
         The various mapped to "Misc" are not reported but can be looked up in the repository.
         }
         \label{nounlda}
@@ -67,43 +63,8 @@ the sentence one while performing worse on the measured metrics during human ins
 Experiments on ABAE were performed on both the noun and default generation pipelines.
 Initially they were done on a small subset of the dataset.
 
-Hyperparameter tuning was performed on 20 different configurations on the full dataset with some performing generally better.
+Hyperparameter tuning was performed on 20 different configurations.
 The best settings were chosen by trading off the loss and measured coherence prioritizing lower coherence.
-\begin{center}
-    \begin{table}
-        \begin{tabular}{c l c}
-            \hline
-            Inferred Aspect   & Top relative words                                              & Gold Aspect \\ [0.5ex]
-            \hline\hline
-            Low-complexity    & \textit{accessible, approachable, light, casual}                &                     \\
-            Riddles/Puzzles   & \textit{puzzle, riddle, logic, deductive, reasoning}            & Complex/Complicated \\
-            Convoluted        & \textit{tedious, convoluted, punish, predictable, chaotic}      &                     \\
-            \hline
-            Frustration       & \textit{ready, frustrate, play, stop}                           & Downtime            \\
-            \hline
-            Instructions      & \textit{instruction, manual, answer, phrase, interpretation}    & Bookkeeping         \\
-            \hline
-            Interaction       & \textit{player, potentially, opponent, investor, passive, vote} &                     \\
-            Cooperation       & \textit{coop, gm, competitively}                                & Interaction         \\
-            Bluffing/Plotting & \textit{speculation, bluffing, partnership, auction}            &                     \\
-            \hline
-            Attack/Protect    & \textit{invade, protect, defend}                                & Bash the leader     \\
-            \hline
-            -                 & \textit{no aspect matched}                                      & Luck                \\
-            \hline
-            Various           & ...                                                             & Misc.               \\
-            \hline
-        \end{tabular}
-        \caption{Gold inferred aspects on the final ABAE model trained on the full data (~310k records).
-        One can observe that for \textit{luck} no relation was found.
-        The aspect seems to be hardly separable from the others.
-        The various mapped to "Misc" are not reported but can be looked up in the repository.
-        }
-        \label{best-310}
-
-    \end{table}
-
-\end{center}
 
 \begin{center}
     \begin{table}
@@ -129,9 +90,7 @@ The best settings were chosen by trading off the loss and measured coherence pri
             Various            & ...                                                    & Misc.               \\
             \hline
         \end{tabular}
-        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (~80k records).
-        It is more balanced comapred to the other observed model that more heavily relies on compelxity and identifies
-        more non relevant aspects for the problem to currently solve.
+        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (~80k).
         The various mapped to "Misc" are not reported but can be looked up in the repository.
         }
         \label{best-80}
@@ -176,9 +135,8 @@ The mapping between identified aspects and gold ones are reported in table \#\re
 Coherence is overall lower and the aspects seem to be stronger than the one identified by the full data model.
 
 \paragraph{}
-Unlike what expected by the ABAE paper LDA outperforms in measured metrics ABAE.
+Unlike what expected by the ABAE paper LDA outperforms in coherence ABAE.
 By looking at the found aspects it seems like the neural model is better at capturing more complex relations.
-
 Despite giving a better expected performance the LDA models' mapped aspects were not
 as convincing during human evaluation and unable.
 They also had a hard time recognizing some required aspects.
@@ -186,6 +144,4 @@ This could be related to the loss of contextual information that relates well to
 some aspects like downtime where most times it is referred as a frustrating activity
 often associated with a negative adjective value thing that is lost by the NOUN only approach.
 
-The task itself could be hard to solve as some aspects tend to overlap like downtime that is most
-often related to bookkeeping.
 Final models evaluation metrics of the dataset are reported in table \ref{performance-review}.
