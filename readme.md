@@ -15,7 +15,7 @@ Also install:
 > 
 No script has been written as I believed notebooks to be better at guiding the thought process.
 
-First run the ```main/dataset/bgg_corpus_service.ipynb``` or download the dataset directly from: TODO LINK
+First run the ```main/dataset/bgg_corpus_service.ipynb``` or download the dataset directly from: https://www.kaggle.com/datasets/jacopofichera/bgg-scrapped-reviews
 
 To run preprocessing go to ```main/dataset/pre_processing.ipynb```. This will generate
 various pre-processed datasets based on the starting one.
