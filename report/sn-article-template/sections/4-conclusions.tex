@@ -1,0 +1,32 @@
+\section{Concluding remarks}
+The results do not compare well with initial expectations, as more complex solutions yield worse metric values.
+Some possible issues in the approach might have during data pre-processing.
+The pipelines could be too aggressive thus degrading the structure of the information ABAE requires.
+
+If not the processing pipeline the real problem could be the dataset itself.
+Reviews might be too similar or generally unbalanced in topics.
+In fact BGG is known to be very biased towards complex games: of the top 20 ranked
+only 3 have a weight rating below 3 ("Monopoly" for comparison is ~1.62)\footnote{Ranking was inspected as for 03/2025}.
+Based on this, we can expect the topic to gain more focus from the community.
+
+Assuming that all gold aspects can be inferred by the scrapped reviews
+is a required assumption by the approach, but it could not be the reality.
+To improve the overall dataset quality additional information given by BGG should have been exploited.
+The complexity rating could have been a possible filter to retrieve a list of games from which to draw
+comments that we could suppose to be more likely to cite the "Complicated/Complex" aspect.
+
+Next steps could involte exploiting the found models to filter out reviews that too harshly rely
+on identified aspects that do not fit the requirements, e.g. "Game components".
+This way we would be building a more refined dataset that might be used achieve better identification on a completely new model.
+
+A possible note on the low performance of ABAE is the low range of aspect values
+during the hyperparameter tuning process.
+The range was set to $[7,20]$ but unlike what supposed, it seems that the data is way more complex in our
+project than the one used by other applications involving ABAE.
+By increasing the number of aspects there
+a better separation of topics while also increasing overall coherence can be observed.
+This would also explain why the \texit{80k} ABAE performs better:
+some patterns that are recognizable in the larger dataset are not distinguishable enough in the smaller one.
+
+In the end it cannot be truly stated if the lower coherence in ABAE models results
+in worse aspect identifications without a real test set.

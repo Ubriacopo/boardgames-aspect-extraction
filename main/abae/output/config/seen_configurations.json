@@ -1,0 +1,177 @@
+[
+  {
+    "embedding_size": 300,
+    "epochs": 11,
+    "aspect_size": 9,
+    "batch_size": 512,
+    "learning_rate": 0.007306153347321277
+  },
+  {
+    "learning_rate": 0.0020646784735470726,
+    "epochs": 15,
+    "batch_size": 128,
+    "aspect_size": 7,
+    "embedding_size": 100
+  },
+  {
+    "aspect_size": 13,
+    "embedding_size": 300,
+    "epochs": 11,
+    "batch_size": 512,
+    "learning_rate": 0.002043186796816812
+  },
+  {
+    "aspect_size": 17,
+    "batch_size": 256,
+    "embedding_size": 200,
+    "epochs": 11,
+    "learning_rate": 0.002043186796816812
+  },
+  {
+    "aspect_size": 13,
+    "embedding_size": 300,
+    "learning_rate": 1.528848384756386e-05,
+    "batch_size": 512,
+    "epochs": 7
+  },
+  {
+    "aspect_size": 7,
+    "embedding_size": 400,
+    "batch_size": 1024,
+    "epochs": 11,
+    "learning_rate": 0.002043186796816812
+  },
+  {
+    "epochs": 9,
+    "learning_rate": 2.7095598297631782e-05,
+    "embedding_size": 300,
+    "aspect_size": 19,
+    "batch_size": 512
+  },
+  {
+    "embedding_size": 300,
+    "epochs": 11,
+    "batch_size": 512,
+    "learning_rate": 0.007306153347321277,
+    "aspect_size": 11
+  },
+  {
+    "aspect_size": 20,
+    "batch_size": 128,
+    "embedding_size": 100,
+    "epochs": 7,
+    "learning_rate": 0.00034307925427065264
+  },
+  {
+    "aspect_size": 17,
+    "learning_rate": 0.0020646784735470726,
+    "epochs": 15,
+    "embedding_size": 300,
+    "batch_size": 512
+  },
+  {
+    "embedding_size": 400,
+    "batch_size": 1024,
+    "epochs": 11,
+    "aspect_size": 9,
+    "learning_rate": 0.007306153347321277
+  },
+  {
+    "batch_size": 128,
+    "embedding_size": 100,
+    "epochs": 7,
+    "learning_rate": 0.00034307925427065264,
+    "aspect_size": 11
+  },
+  {
+    "epochs": 15,
+    "batch_size": 128,
+    "learning_rate": 0.0022376672226856378,
+    "embedding_size": 100,
+    "aspect_size": 12
+  },
+  {
+    "batch_size": 256,
+    "learning_rate": 0.0055237549202012005,
+    "embedding_size": 200,
+    "aspect_size": 8,
+    "epochs": 13
+  },
+  {
+    "aspect_size": 20,
+    "epochs": 9,
+    "learning_rate": 0.0009812379995669137,
+    "embedding_size": 400,
+    "batch_size": 1024
+  },
+  {
+    "batch_size": 128,
+    "embedding_size": 100,
+    "learning_rate": 1.528848384756386e-05,
+    "epochs": 7,
+    "aspect_size": 8
+  },
+  {
+    "epochs": 9,
+    "learning_rate": 0.0009812379995669137,
+    "batch_size": 256,
+    "embedding_size": 200,
+    "aspect_size": 19
+  },
+  {
+    "embedding_size": 300,
+    "batch_size": 512,
+    "epochs": 7,
+    "learning_rate": 0.00034307925427065264,
+    "aspect_size": 11
+  },
+  {
+    "aspect_size": 7,
+    "embedding_size": 300,
+    "epochs": 11,
+    "batch_size": 512,
+    "learning_rate": 0.007306153347321277
+  },
+  {
+    "aspect_size": 14,
+    "batch_size": 256,
+    "learning_rate": 0.0055237549202012005,
+    "embedding_size": 200,
+    "epochs": 13
+  },
+  {
+    "embedding_size": 300,
+    "aspect_size": 15,
+    "batch_size": 512,
+    "learning_rate": 0.0006166794665094792,
+    "epochs": 13
+  },
+  {
+    "aspect_size": 17,
+    "batch_size": 256,
+    "embedding_size": 200,
+    "epochs": 11,
+    "learning_rate": 0.007306153347321277
+  },
+  {
+    "embedding_size": 400,
+    "batch_size": 1024,
+    "aspect_size": 16,
+    "epochs": 11,
+    "learning_rate": 0.007306153347321277
+  },
+  {
+    "embedding_size": 300,
+    "epochs": 11,
+    "batch_size": 512,
+    "learning_rate": 0.002043186796816812,
+    "aspect_size": 12
+  },
+  {
+    "aspect_size": 17,
+    "embedding_size": 400,
+    "batch_size": 1024,
+    "learning_rate": 0.0006166794665094792,
+    "epochs": 13
+  }
+]

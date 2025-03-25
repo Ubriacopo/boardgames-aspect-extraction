@@ -1,0 +1,87 @@
+\section{Research question and methodology}
+
+\subsection{Dataset and pre-processing}
+BGG offers a simple yet effective API to scrap data from their platform.
+It lacks a direct method for listing boardgames, these have been taken from a generated dump.
+
+To tackle possible issues of the raw data, various different pre-processing pipelines were designed
+by using modular processing components.
+For data constraints it is desirable to work on one language only but users do not have to explicit the language of their reviews.
+Thus, all pipelines share a filter on the language of the comments, removing all non english ones.
+
+A good portion of the reviews on BGG do not actually give an insight on the required game aspects.
+Some focus strictly on the experience and quality of service of the product coming from the popular crowdfunding platforms (e.g. "Kickstarter").
+To avoid having these low information records in the dataset the simple heuristic of filtering out reviews containing the related keywords (e.g. "ks", "pledge") was applied.
+
+Reviews were tokenized and lemmatized thanks to a pre-trained POS tagger and processor: \textit{spacy}.
+To further reduce redundant and undesired information the pre-processing pipeline maps game names and numbers to generic tags.
+Another step all pipelines have in common is to filter out short review as we expect to hardly learn anything new from them.
+
+Besides a "\textit{default}" built pipeline two more were defined as:
+\begin{itemize}
+    \item {\textit{NOUN}}: Takes a spin on the default pipeline by filtering all words that are not recognized as nouns
+    by the used tagger. % todo ref a paere che lavora su noun only
+
+    \item {\textit{default-sentence}}: Is a slight modification on the \texit{default} pipeline in which
+    at the start of the process reviews are split on sentences by a sentence splitter (\textit{spacy}).
+    These lines are considered entries of the dataset instead of the full comment.
+\end{itemize}
+
+After running a pipeline duplicates are discarded to avoid increasing bias in the dataset.
+
+\subsection{Metrics}
+% todo
+Not having a ground truth to estimate the real performance of the model on makes the pursuit of a strong metric
+for model evaluation crucial.
+As proposed when ABAE was presented \cite{he-etal-2017-unsupervised} a metric that has been observed to relate
+well with human judgement is \textit{topic coherence}, also known as "\textit{umass}" \textit{coherence} \cite{mimno-etal-2011-optimizing}:
+$$C(t;V^{(t)}) = \sum^M_{m=2} \sum^{m-1}_{l=1} \log \frac{D(v_m^{(t)}, v_l^{(t)}) + 1}{D(v_l^{(t)})} $$.
+
+Where $D(v)$ is the document frequency and $D(v,v')$ the co-document frequency.
+The values of the metric lie in the interval $(-\infty, 0)$ where values closer to zero represent a better coherence.
+This is the only metric shared among different model architectures.
+
+\subsection{Developed models}
+The first trained models have been initialized on a "standard" set of hyperparameters.
+Hyperparameter optimization by random search followed.
+The best found configuration is then run on the full data and evaluated according to the selected metrics.
+The top words of each found aspect are extracted and mapped by hand the gold standards where possible.
+
+The mapping is then wrapped in a lookup class that maps the model outputs to the required aspects.
+Values belonging to the same aspect are aggregated together as it becomes more relevant.
+
+\subsubsection{LDA}
+% todo rileggi
+LDA elaboration is not a computation heavy task for modern standards therefore experiments on the different
+preprocessing pipelines were performed with ease.
+During hypermarket tuning focus went to the most important one: the number of topics $K$.
+For LDA K-fold CV on each seen configuration could be applied.
+
+Configurations were chosen based on the average coherence for some top-k words and the overall \textit{perplexity}.
+The final model was trained on the full data.
+
+\subsubsection{ABAE}
+To train ABAE, as proposed by the original paper, the \textit{contrastive max-margin} loss was used.
+% todo non é definizione corretta?
+During the training phase a sample of sentences that acts opposed to the input sentence is needed.
+This additional set of reviews are used to compute the loss after decoding is performed.
+We refer to these as \textit{negative samples}.
+The loss is so defined as a \textit{hinge loss} that maximizes the distance between the decoded embedding ($r_s$)
+and the averaged negative samples embeddings ($n_i$) while also minimizing the distance with the attention weighted sentence embedding ($z_s$).
+Being all values from the same \textit{embeddings} space the distance is measured by dot product.
+
+More strictly the \textit{contrastive max-margin} loss:
+$$J(\theta) = \sum_{s\in D}\sum_{i=1}^m \max(0, 1 - r_sz_s + r_sn_i)$$
+
+The size of the negative samples for the loss computation was fixed to $20$.
+
+For the optimizer \textit{adam} was chosen for two main reasons.
+The first one is that it was the optimizer used in the original ABAE proposal.
+Secondly, although \textit{SGD} is as effective\cite{wilson2018marginal} and less bloated
+by variables, the gain in convergence speed is considerate.
+
+The first run on the model was performed by using the default setting applied in the ABAE paper.
+Instead of K-fold CV classic CV was used.
+The tuned hyperparameters are: \textit{learning rate, epochs, batch size, embedding size and aspect size}.
+The best found configuration is then run on the full data and evaluated according to our metrics.
+Comparison between ABAE instances was done on coherence and max-margin loss.

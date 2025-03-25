@@ -1,0 +1,147 @@
+\section{Experimental results}
+The first performed runs without tuning the hyperparameters gave us a broad idea
+of the unoptimized solution quality on the evaluated metrics.
+
+Both LDA and ABAE only had a small boost in performance by tuning the hyperparameters.
+The best identified configurations were then used to make a final evaluation.
+The different models were compared where possible.
+
+\paragraph{LDA}
+At first an additional processing pipeline was applied for LDA which splits sentences and filters them to have nouns only.
+The approach was dropped as the loss of information was too high and the generated model was not on par with the others.
+
+Hyperparameter tuning was therefore done on the two datasets: \textit{NOUN-only} and \textit{sentence}
+with final best found $K=7$ for both.
+As expected by the decreasing complexity of the dataset, the noun models perform better in terms of coherence.
+The NOUN model was unable to recognize some key requirements this probably given by the limited number of aspects of the final configuration.
+
+The sentence model also resulted under-segmented and did not align with the requirements.
+For this reason a higher promising value from hyperparameter optimization of $K=13$ was selected
+to see if the solution could be improved.
+The new model outperformed the best expected model in both \textit{topic coherence} and \textit{perplexity}.
+
+
+\begin{center}
+
+    % todo fai questo
+    \begin{table}
+        \begin{tabular}{c l c}
+            \hline
+            Inferred Aspect         & Top relative words                                     & Gold Aspect \\ [0.5ex]
+            \hline\hline
+            Strategy/Depth          & \textit{strategy, time, mechanic, depth}               &                     \\
+            Target/Difficulty       & \textit{puzzle, engine, adult, child}                  & Complex/Complicated \\
+            \hline
+            -                       & \textit{-}                                             & Downtime            \\
+            \hline
+            Game Mechanics/Rulebook & \textit{rule, placement,worker, rulebook, system}      & Bookkeeping         \\
+            \hline
+            Interaction             & \textit{player, interaction, turn, strategy, decision} & Interaction         \\
+            \hline
+            Player track            & \textit{action, turn, player, opponent, victory}       & Bash the leader     \\
+            \hline
+            High/Low luck           & \textit{dice, roll, puzzle, euro, luck}                & Luck                \\
+            \hline
+            Various                 & ...                                                    & Misc.               \\
+            \hline
+        \end{tabular}
+        \caption{Gold inferred aspects on the final NOUN-LDA ($K=13$) model trained on the full data (310k).
+        Interaction seems to overlap with downtime.
+        The various mapped to "Misc" are not reported but can be looked up in the repository.
+        }
+        \label{nounlda}
+
+    \end{table}
+
+\end{center}
+
+% todo devi fare coso
+For LDA the best processing pipeline in terms of result did not yield the most interpretable model in fact,
+the sentence one while performing worse on the measured metrics during human inspection it seemed to be more valuable.
+
+\paragraph{ABAE}
+Experiments on ABAE were performed on both the noun and default generation pipelines.
+Initially they were done on a small subset of the dataset.
+
+Hyperparameter tuning was performed on 20 different configurations.
+The best settings were chosen by trading off the loss and measured coherence prioritizing lower coherence.
+
+\begin{center}
+    \begin{table}
+        \begin{tabular}{c l c}
+            \hline
+            Inferred Aspect    & Top relative words                                     & Gold Aspect \\ [0.5ex]
+            \hline\hline
+            Strategy-Asymmetry & \textit{tactic, layer, tactical, strategic, asymetric} & Complex/Complicated \\
+            Weight             & \textit{weight, playtime, length, long}                &                     \\
+            \hline
+            Frustration        & \textit{tend, frustrating, annyoying, drag, problem}   & Downtime            \\
+            Analysis Paralysis & \textit{decision, choice, planning, paralzsis}         &                     \\
+            \hline
+            Game mechanisms    & \textit{scenario, progression, app, ai}                & Bookkeeping         \\
+            Ruleset            & \textit{rule, explain, teach, learn, rulset}           &                     \\
+            \hline
+            Cooperation        & \textit{cooperative, coop, party, family}              & Interaction         \\
+            \hline
+            Player blocking    & \textit{opponent, force, block, avoid}                 & Bash the leader     \\
+            \hline
+            Cards/Dice         & \textit{card, flip, face, dice, randmolu}              & Luck                \\
+            \hline
+            Various            & ...                                                    & Misc.               \\
+            \hline
+        \end{tabular}
+        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (80k).
+        The various mapped to "Misc" are not reported but can be looked up in the repository.
+        }
+        \label{best-80}
+    \end{table}
+
+\end{center}
+% todo gold inferred by best ABAE and best LDA
+
+
+\begin{center}
+    \begin{table}
+        \begin{tabular}{c r r r r r}
+            \hline
+            Model            & $\overline{C}$ & $\overline{C}_5$ & $\overline{C'}_5$ & $l$  & Perplexity\\ [0.5ex]
+            \hline
+            ABAE             & -12.62         & -10.65           & -10.16            & 3.98 & /          \\
+            \hline
+            ABAE-small       & -6.72          & -5.49            & -3.63             & 4.06 & /          \\
+            \hline
+            NOUN-LDA($K=13$) & -3.76          & -2.34            & -2.39             & /    & -6.99      \\
+            \hline
+            sent-LDA($K=13$) & -4.10          & - 3.48           & -3.48             & /    & -8.16      \\
+            \hline
+        \end{tabular}
+        \caption{Evaluation results. All evalauted on the same test setw ith $C'$ being the coherence only in relevant aspects.
+        }
+        \label{performance-review}
+
+    \end{table}
+
+\end{center}
+
+The best overall configuration was indeed the lowest in loss but, compared to the reduced
+dataset version, it performed way worse in coherence metrics.
+To further investigate the "80k" version of the base model was evaluated on the bigger test set.
+It could be supposed that, not only there was bias for some identified aspects, but that the extended
+data allowed the model to recognize less prominent patterns.
+
+% todo rileggi
+A last model on the optimal settings but trained on a downsized dataset was run.
+The mapping between identified aspects and gold ones are reported in table \#\ref{best-80}.
+Coherence is overall lower and the aspects seem to be stronger than the one identified by the full data model.
+
+\paragraph{}
+Unlike what expected by the ABAE paper LDA outperforms in coherence ABAE.
+By looking at the found aspects it seems like the neural model is better at capturing more complex relations.
+Despite giving a better expected performance the LDA models' mapped aspects were not
+as convincing during human evaluation and unable.
+They also had a hard time recognizing some required aspects.
+This could be related to the loss of contextual information that relates well to
+some aspects like downtime where most times it is referred as a frustrating activity
+often associated with a negative adjective value thing that is lost by the NOUN only approach.
+
+Final models evaluation metrics of the dataset are reported in table \ref{performance-review}.
