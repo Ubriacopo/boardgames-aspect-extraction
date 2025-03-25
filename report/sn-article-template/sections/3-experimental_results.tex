@@ -45,7 +45,7 @@ The new model outperformed the best expected model in both \textit{topic coheren
             Various                 & ...                                                    & Misc.               \\
             \hline
         \end{tabular}
-        \caption{Gold inferred aspects on the final NOUN-LDA ($K=13$) model trained on the full data (~310k).
+        \caption{Gold inferred aspects on the final NOUN-LDA ($K=13$) model trained on the full data (310k).
         Interaction seems to overlap with downtime.
         The various mapped to "Misc" are not reported but can be looked up in the repository.
         }
@@ -90,7 +90,7 @@ The best settings were chosen by trading off the loss and measured coherence pri
             Various            & ...                                                    & Misc.               \\
             \hline
         \end{tabular}
-        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (~80k).
+        \caption{Gold inferred aspects on the final ABAE model trained on a subsample of the data (80k).
         The various mapped to "Misc" are not reported but can be looked up in the repository.
         }
         \label{best-80}
@@ -104,15 +104,15 @@ The best settings were chosen by trading off the loss and measured coherence pri
     \begin{table}
         \begin{tabular}{c r r r r r}
             \hline
-            Model      & $\overline{C}$ & $\overline{C}_5$ & $\overline{C'}_5$ & $l$  & Perplexity\\ [0.5ex]
+            Model            & $\overline{C}$ & $\overline{C}_5$ & $\overline{C'}_5$ & $l$  & Perplexity\\ [0.5ex]
             \hline
-            ABAE       & -12.62         & -10.65           & -10.16            & 3.98 & /          \\
+            ABAE             & -12.62         & -10.65           & -10.16            & 3.98 & /          \\
             \hline
-            ABAE-small & -6.72          & -5.49            & -3.63             & 4.06 & /          \\
-            \hline % todo valori
-            NOUN-LDA   & -2.71          & -2.34            & -2.39             & /    & 6.99       \\
-            \hline  % todo valori
-            sent-LDA   & 3.0            & 2.1              & /                 & -3   & n.d.       \\
+            ABAE-small       & -6.72          & -5.49            & -3.63             & 4.06 & /          \\
+            \hline
+            NOUN-LDA($K=13$) & -3.76          & -2.34            & -2.39             & /    & -6.99      \\
+            \hline
+            sent-LDA($K=13$) & -4.10          & - 3.48           & -3.48             & /    & -8.16      \\
             \hline
         \end{tabular}
         \caption{Evaluation results. All evalauted on the same test setw ith $C'$ being the coherence only in relevant aspects.
