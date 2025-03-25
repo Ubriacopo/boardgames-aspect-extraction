@@ -26,6 +26,14 @@ From the new dataset a new model could be studied that probably would achieve be
 An ensemble method of the multiple generated models is also an option but that would require to find a way to give more
 weight to one model compared to the other and ultimately is better done with a test set.
 
+A possible note on the low performance of ABAE is the mistakenly assumed range of parameters
+during hyperparameter tuning as a range of $[7,20]$ was used for the aspect size.
+Unlike what supposed it seems that the data is way more complex in our project than the one
+used by other applications involving ABAE. By increasing the number of aspects there was indeed
+a better separation of topics while also increasing overall coherence.
+This would also explain why on a smaller dataset ABAE performs better, the data is less various
+and some patterns that are recognizable in the big one are not so for the
+
 In the end it cannot be state if the low coherence ABAE model performs worse in the identification task
 without the test set.
 Ultimatively the quality of the dataset should have been better took care for and studied.
