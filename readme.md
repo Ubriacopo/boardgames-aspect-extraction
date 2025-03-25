@@ -1,4 +1,4 @@
-## Project #4 of the Natural Language Processing Course
+## Project #4 of the NLP: What do you like in boardgames?
 
 For the project I chose to elaborate the proposal number 4 as I have a personal
 interest in the topic of the domain, being boardgames.
