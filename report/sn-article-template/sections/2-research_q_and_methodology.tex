@@ -13,11 +13,10 @@ A good portion of the reviews on BGG do not actually give an insight on the requ
 Some focus strictly on the experience and quality of service of the product coming from the popular crowdfunding platforms (e.g. "Kickstarter").
 To avoid having these low information records in the dataset the simple heuristic of filtering out reviews containing the related keywords (e.g. "ks", "pledge") was applied.
 
-Reviews were tokenized and lemmatized thanks to a pre-trained POS tagger and processor: \textit{spacy}.
+Reviews were tokenized and lemmatized thanks to a pre-trained POS tagger and processor provided by \textit{spacy}.
 To further reduce redundant and undesired information the pre-processing pipeline maps game names and numbers to generic tags.
-Another step all pipelines have in common is to filter out short review as we expect to hardly learn anything new from them.
-
-Besides a "\textit{default}" built pipeline two more were defined as:
+Another step pipelines have in common is to filter out short review as we expect to hardly learn anything from them.
+Besides the "\textit{default}" built pipeline two more were defined as:
 \begin{itemize}
     \item {\textit{NOUN}}: Takes a spin on the default pipeline by filtering all words that are not recognized as nouns
     by the used tagger. % todo ref a paere che lavora su noun only
@@ -27,7 +26,7 @@ Besides a "\textit{default}" built pipeline two more were defined as:
     These lines are considered entries of the dataset instead of the full comment.
 \end{itemize}
 
-After running a pipeline duplicates are discarded to avoid increasing bias in the dataset.
+After running a pipeline duplicates are discarded to avoid increasing bias.
 
 \subsection{Metrics}
 % todo
@@ -46,7 +45,6 @@ The first trained models have been initialized on a "standard" set of hyperparam
 Hyperparameter optimization by random search followed.
 The best found configuration is then run on the full data and evaluated according to the selected metrics.
 The top words of each found aspect are extracted and mapped by hand the gold standards where possible.
-
 The mapping is then wrapped in a lookup class that maps the model outputs to the required aspects.
 Values belonging to the same aspect are aggregated together as it becomes more relevant.
 
