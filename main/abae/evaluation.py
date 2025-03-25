@@ -24,8 +24,6 @@ class ABAEEvaluationProcessor:
         # Word Vector (Like Gensim names)
         self.wv = normalize(model.get_layer(index=1).weights[0].value.data, dim=-1)
         # Aspect Vector (Like Gensim names)
-        # TODO Esiste differenza?
-        # self.av = normalize(model.get_layer(index=7).weights[0].value.data, dim=-1) WEIGHT
         self.av = normalize(model.get_layer(index=7).w, dim=-1)
         self.calculated_aspects: list = []
 
@@ -73,7 +71,6 @@ class ABAEEvaluationProcessor:
         # BOW creation
         df = self.df['comments'].swifter.apply(lambda x: x.split())
         corpus = [dictionary.doc2bow(doc) for doc in df]
-        # TODO Vedi se passando array piu piuccolo di aspects va meglio ed è sbaglaito passare sempre max
         return CoherenceModel(topics=aspects, corpus=corpus, dictionary=dictionary, coherence='u_mass', topn=top_n)
 
     def c_v_coherence_model(self, top_n: int, aspects: list[list] = None) -> CoherenceModel:
